@@ -2,11 +2,16 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>誤配防止OCR v8</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>誤配防止アプリ</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="誤配防止">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/9561/9561688.png">
+
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
-        /* 全体設定 */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
             background: #000; color: white; font-family: sans-serif; 
@@ -15,19 +20,19 @@
             overflow: hidden; touch-action: manipulation;
         }
 
-        /* 横向きになった時に警告を出す、またはレイアウトを維持する設定 */
+        /* 横向き制限（縦向きを促す） */
         @media screen and (orientation: landscape) {
             body::after {
                 content: "画面を縦向きにして使用してください";
                 position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
                 background: #000; color: #fff; display: flex; align-items: center;
-                justify-content: center; z-index: 9999; font-size: 20px;
+                justify-content: center; z-index: 9999;
             }
         }
         
-        /* カメラエリア（上部固定） */
+        /* カメラエリア（上部） */
         #v-container { 
-            position: relative; width: 100%; height: 65vh; 
+            position: relative; width: 100%; height: 62vh; 
             background: #222; overflow: hidden;
         }
         #video { width: 100%; height: 100%; object-fit: cover; }
@@ -39,32 +44,34 @@
             background: rgba(0,0,0,0.4); 
         }
         .guide-box { 
-            width: 280px; height: 80px; 
-            border: 2px solid rgba(255,255,255,0.3); 
+            width: 280px; height: 90px; 
+            border: 2px solid rgba(255,255,255,0.2); 
             position: relative;
         }
-        .guide-box::before { content: ""; position: absolute; top: -5px; left: -5px; width: 30px; height: 30px; border: 5px solid #00ff00; border-right: 0; border-bottom: 0; }
-        .guide-box::after { content: ""; position: absolute; bottom: -5px; right: -5px; width: 30px; height: 30px; border: 5px solid #00ff00; border-left: 0; border-top: 0; }
+        .guide-box::before { content: ""; position: absolute; top: -5px; left: -5px; width: 35px; height: 35px; border: 6px solid #00ff00; border-right: 0; border-bottom: 0; }
+        .guide-box::after { content: ""; position: absolute; bottom: -5px; right: -5px; width: 35px; height: 35px; border: 6px solid #00ff00; border-left: 0; border-top: 0; }
 
-        /* 操作パネル（下部固定） */
+        /* 操作パネル（下部） */
         .panel { 
-            height: 35vh; background: #111; border-top: 3px solid #333; 
-            display: flex; flex-direction: column; align-items: center; justify-content: space-around;
-            padding-bottom: env(safe-area-inset-bottom); /* iPhoneのバー対策 */
+            flex: 1; background: #111; border-top: 4px solid #333; 
+            display: flex; flex-direction: column; align-items: center; justify-content: space-evenly;
+            /* iPhoneのホームバーと被らないための余白 */
+            padding-bottom: calc(15px + env(safe-area-inset-bottom));
         }
-        .target { font-size: 14px; color: #aaa; }
-        .target b { color: #00ff00; font-size: 28px; letter-spacing: 2px; }
-        #result { font-size: 18px; font-weight: bold; color: #ffff00; text-align: center; height: 1.5em; }
+        .target-label { font-size: 14px; color: #aaa; text-align: center; }
+        .target-label b { color: #00ff00; font-size: 30px; letter-spacing: 3px; display: block; margin-top: 5px; }
+        #result { font-size: 18px; font-weight: bold; color: #ffff00; text-align: center; min-height: 1.5em; width: 90%; }
         
-        /* スキャンボタン（大きく押しやすく） */
+        /* ボタン */
         #btn { 
-            width: 85%; height: 70px; 
+            width: 85%; height: 75px; 
             background: #0088ff; color: #fff; 
-            border: none; border-radius: 16px; 
-            font-size: 24px; font-weight: bold;
-            box-shadow: 0 5px 0 #0055aa;
+            border: none; border-radius: 20px; 
+            font-size: 26px; font-weight: bold;
+            box-shadow: 0 6px 0 #0055aa;
+            transition: all 0.1s;
         }
-        #btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #0055aa; }
+        #btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #0055aa; }
         #btn:disabled { background: #444; color: #888; box-shadow: none; }
     </style>
 </head>
@@ -76,7 +83,7 @@
     </div>
     
     <div class="panel">
-        <div class="target">ターゲット: <b>123456</b></div>
+        <div class="target-label">ターゲット店舗コード<b>123456</b></div>
         <div id="result">初期化中...</div>
         <button id="btn" disabled>スキャン開始</button>
     </div>
@@ -95,10 +102,10 @@
                 video.srcObject = s;
                 video.onloadeddata = () => {
                     btn.disabled = false;
-                    resultDisplay.innerText = "枠に数字を合わせてスキャン";
+                    resultDisplay.innerText = "枠に数字を合わせてスキャン！";
                 };
             } catch (e) {
-                resultDisplay.innerText = "カメラ許可が必要です";
+                resultDisplay.innerText = "カメラの許可が必要です";
             }
         }
 
@@ -111,8 +118,9 @@
             const vW = video.videoWidth;
             const vH = video.videoHeight;
             
+            // 枠の範囲だけを切り取る（中央の60%幅、20%高さ）
             const sW = vW * 0.6; 
-            const sH = vH * 0.15; 
+            const sH = vH * 0.2; 
             const sX = (vW - sW) / 2;
             const sY = (vH - sH) / 2;
 
@@ -124,6 +132,7 @@
             try {
                 const res = await Tesseract.recognize(canvas, 'eng');
                 let raw = res.data.text;
+                // 1の認識補正 + 数字以外を排除
                 let clean = raw.replace(/[Il|i]/g, '1').replace(/[^0-9]/g, '');
 
                 if (clean.includes(targetCode)) {
@@ -138,13 +147,13 @@
                     if (navigator.vibrate) navigator.vibrate(400);
                 }
             } catch (e) {
-                resultDisplay.innerText = "エラー：再試行してください";
+                resultDisplay.innerText = "エラー：もう一度試してください";
             } finally {
                 setTimeout(() => {
                     btn.disabled = false;
                     if (document.body.style.backgroundColor !== "blue") {
                         resultDisplay.style.color = "#ffff00";
-                        resultDisplay.innerText = "スキャン待機中";
+                        resultDisplay.innerText = "次のスキャン待機中";
                     }
                 }, 2000);
             }
