@@ -3,23 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>誤配防止OCR v6</title>
+    <title>誤配防止OCR v7</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
+        /* 画面全体を固定 */
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #000; color: white; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        #v-container { position: relative; width: 100%; flex: 1; background: #222; }
+        body { 
+            background: #000; color: white; font-family: sans-serif; 
+            height: 100vh; width: 100vw;
+            display: flex; flex-direction: column; 
+            overflow: hidden; /* スクロールさせない */
+        }
+        
+        /* カメラエリア（画面の約60%） */
+        #v-container { 
+            position: relative; width: 100%; height: 60vh; 
+            background: #222; overflow: hidden;
+        }
         #video { width: 100%; height: 100%; object-fit: cover; }
-        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); }
+        
+        /* ガイド枠 */
+        .overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            display: flex; align-items: center; justify-content: center; 
+            background: rgba(0,0,0,0.4); 
+        }
         .guide-box { width: 280px; height: 80px; border: 2px solid rgba(255,255,255,0.3); position: relative; }
         .guide-box::before { content: ""; position: absolute; top: -5px; left: -5px; width: 30px; height: 30px; border: 5px solid #00ff00; border-right: 0; border-bottom: 0; }
         .guide-box::after { content: ""; position: absolute; bottom: -5px; right: -5px; width: 30px; height: 30px; border: 5px solid #00ff00; border-left: 0; border-top: 0; }
-        .panel { background: #111; padding: 20px; border-top: 2px solid #333; text-align: center; }
-        .target { font-size: 14px; color: #aaa; margin-bottom: 5px; }
+
+        /* 操作パネル（画面の約40%） */
+        .panel { 
+            flex: 1; background: #111; border-top: 2px solid #333; 
+            display: flex; flex-direction: column; align-items: center; justify-content: space-evenly;
+            padding: 10px 0 25px 0; /* 下側に余裕を持たせる */
+        }
+        .target { font-size: 14px; color: #aaa; }
         .target b { color: #00ff00; font-size: 24px; }
-        #result { font-size: 18px; font-weight: bold; color: #ffff00; margin: 10px 0; min-height: 1.5em; }
-        #btn { width: 90%; height: 65px; background: #0088ff; color: #fff; border: none; border-radius: 12px; font-size: 22px; font-weight: bold; }
-        #btn:disabled { background: #444; color: #888; }
+        #result { font-size: 18px; font-weight: bold; color: #ffff00; text-align: center; padding: 0 10px; }
+        
+        /* 青いボタン：隠れないようにサイズと余白を調整 */
+        #btn { 
+            width: 85%; height: 60px; 
+            background: #0088ff; color: #fff; 
+            border: none; border-radius: 12px; 
+            font-size: 22px; font-weight: bold;
+            box-shadow: 0 4px 0 #0055aa;
+        }
+        #btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #0055aa; }
+        #btn:disabled { background: #444; color: #888; box-shadow: none; }
     </style>
 </head>
 <body>
@@ -34,65 +66,78 @@
         <div id="result">初期化中...</div>
         <button id="btn" disabled>スキャン開始</button>
     </div>
-<script>
-    const video = document.getElementById('video');
-    const resultDisplay = document.getElementById('result');
-    const btn = document.getElementById('btn');
-    const targetCode = "123456"; 
 
-    // カメラを起動する関数
-    async function start() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "environment" } 
-            });
-            video.srcObject = stream;
-            // ビデオが再生可能になったらボタンを出す
-            video.onloadeddata = () => {
-                btn.disabled = false;
-                resultDisplay.innerText = "準備完了：枠に合わせて押す";
-            };
-        } catch (e) {
-            resultDisplay.innerText = "カメラ許可が必要です";
-        }
-    }
+    <script>
+        const video = document.getElementById('video');
+        const resultDisplay = document.getElementById('result');
+        const btn = document.getElementById('btn');
+        const targetCode = "123456"; 
 
-    // スキャンする関数
-    async function doScan() {
-        btn.disabled = true;
-        resultDisplay.innerText = "読み取り中...";
-        
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth * 0.5;
-        canvas.height = video.videoHeight * 0.15;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, video.videoWidth*0.25, video.videoHeight*0.42, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
-
-        try {
-            const res = await Tesseract.recognize(canvas, 'eng');
-            let txt = res.data.text.replace(/[Il|i]/g, '1').replace(/[^0-9]/g, '');
-            
-            if (txt.includes(targetCode)) {
-                resultDisplay.innerText = "【一致】OK！";
-                document.body.style.backgroundColor = "blue";
-                if(navigator.vibrate) navigator.vibrate(200);
-            } else {
-                resultDisplay.innerText = "不一致: " + (txt || "読取不可");
-                document.body.style.backgroundColor = "#330000";
+        async function init() {
+            try {
+                const s = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment", width: { ideal: 1280 } } 
+                });
+                video.srcObject = s;
+                video.onloadeddata = () => {
+                    btn.disabled = false;
+                    resultDisplay.innerText = "枠に数字を合わせてスキャン";
+                };
+            } catch (e) {
+                resultDisplay.innerText = "カメラ許可が必要です";
             }
-        } catch (e) {
-            resultDisplay.innerText = "エラー再試行";
-        } finally {
-            setTimeout(() => { btn.disabled = false; }, 2000);
         }
-    }
 
-    // ボタンに機能を割り当てる
-    btn.onclick = doScan;
+        async function doScan() {
+            btn.disabled = true;
+            resultDisplay.innerText = "読み取り中...";
+            document.body.style.backgroundColor = "black";
 
-    // 画面が開いたらカメラ起動
-    start();
-</script>
-    
+            const canvas = document.createElement('canvas');
+            const vW = video.videoWidth;
+            const vH = video.videoHeight;
+            
+            // 枠の範囲だけを切り取る
+            const sW = vW * 0.6; 
+            const sH = vH * 0.15; 
+            const sX = (vW - sW) / 2;
+            const sY = (vH - sH) / 2;
+
+            canvas.width = sW;
+            canvas.height = sH;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, sX, sY, sW, sH, 0, 0, sW, sH);
+
+            try {
+                const res = await Tesseract.recognize(canvas, 'eng');
+                let raw = res.data.text;
+                // 1の認識補正
+                let clean = raw.replace(/[Il|i]/g, '1').replace(/[^0-9]/g, '');
+
+                if (clean.includes(targetCode)) {
+                    resultDisplay.innerText = "【一致】OK！";
+                    resultDisplay.style.color = "#00ffff";
+                    document.body.style.backgroundColor = "blue";
+                    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                } else {
+                    resultDisplay.innerText = "不一致: " + (clean || "読取不可");
+                    resultDisplay.style.color = "#ff4444";
+                    document.body.style.backgroundColor = "#330000";
+                }
+            } catch (e) {
+                resultDisplay.innerText = "エラー：再試行してください";
+            } finally {
+                setTimeout(() => {
+                    btn.disabled = false;
+                    if (document.body.style.backgroundColor !== "blue") {
+                        resultDisplay.style.color = "#ffff00";
+                    }
+                }, 2000);
+            }
+        }
+
+        btn.onclick = doScan;
+        window.onload = init;
+    </script>
 </body>
 </html>
