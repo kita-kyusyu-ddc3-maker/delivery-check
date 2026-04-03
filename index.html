@@ -3,123 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>誤配防止OCR</title>
+    <title>誤配防止OCRアプリ</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
-        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; }
-        #video { width: 100%; height: 100vh; object-fit: cover; }
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; }
+        #video-container { position: relative; width: 100%; height: 70vh; background: #222; }
+        #video { width: 100%; height: 100%; object-fit: cover; }
         
-        /* 読み取り枠のスタイル */
+        /* 読み取りガイド枠 */
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.4); /* 周りを暗く */
+            background: rgba(0,0,0,0.3);
         }
         .guide-box {
-            width: 250px; height: 80px;
-            border: 3px solid #00ff00; /* 緑の枠 */
-            box-shadow: 0 0 20px rgba(0,255,0,0.5);
-            position: relative;
+            width: 280px; height: 80px;
+            border: 3px solid #00ff00;
+            box-shadow: 0 0 15px rgba(0,255,0,0.7);
+            background: rgba(255,255,255,0.1);
         }
-        .info { margin-top: 20px; padding: 10px; background: rgba(0,0,0,0.8); text-align: center; }
-        #result { font-size: 24px; font-weight: bold; }
+
+        /* 下部操作パネル */
+        .control-panel {
+            height: 30vh; background: #111; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; padding: 10px;
+        }
+        .target-info { font-size: 16px; color: #00ff00; margin-bottom: 5px; }
+        #result { font-size: 20px; font-weight: bold; color: #ffff00; margin-bottom: 15px; height: 1.5em; text-align: center; }
+        
+        /* スキャン開始ボタン */
+        #start-btn {
+            width: 80%; height: 60px; background: #0088ff; color: white;
+            border: none; border-radius: 30px; font-size: 20px; font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        #start-btn:active { background: #0055aa; transform: translateY(2px); }
+        #start-btn:disabled { background: #555; }
     </style>
 </head>
 <body>
 
-    <video id="video" autoplay playsinline></video>
-    
-    <div class="overlay">
-        <div class="guide-box"></div>
-        <div class="info">
-            <div>次の店舗コード: <span id="target-code">123456</span></div>
-            <div id="result">スキャン中...</div>
+    <div id="video-container">
+        <video id="video" autoplay playsinline></video>
+        <div class="overlay">
+            <div class="guide-box"></div>
         </div>
+    </div>
+    
+    <div class="control-panel">
+        <div class="target-info">照合店舗コード: <strong>123456</strong></div>
+        <div id="result">カメラ起動中...</div>
+        <button id="start-btn" disabled>スキャン開始</button>
     </div>
 
     <script>
         const video = document.getElementById('video');
-    const resultDisplay = document.getElementById('result');
-    const targetCode = "123456"; // 照合したい店舗コード
+        const resultDisplay = document.getElementById('result');
+        const startBtn = document.getElementById('start-btn');
+        const targetCode = "123456"; 
 
-    // 1. カメラの起動（設定をより詳細に）
-    navigator.mediaDevices.getUserMedia({ 
-        video: { 
-            facingMode: "environment", // 外カメラ
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-        } 
-    })
-    .then(stream => { 
-        video.srcObject = stream;
-        video.onloadedmetadata = () => {
-            video.play();
-            // カメラが安定するまで2秒待ってからスキャン開始
-            setTimeout(recognize, 2000);
-        };
-    })
-    .catch(err => {
-        alert("カメラの起動に失敗しました。ブラウザの設定で許可してください。");
-    });
-
-    // 2. 文字認識（OCR）のメイン処理
-    async function recognize() {
-        resultDisplay.innerText = "スキャン中...";
-
-        // 画面の中央部分だけを切り取って解析する（精度向上のため）
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        
-        // 切り取り範囲（枠のサイズに合わせて調整）
-        const scanWidth = video.videoWidth * 0.6; // 画面幅の60%
-        const scanHeight = 100;
-        const startX = (video.videoWidth - scanWidth) / 2;
-        const startY = (video.videoHeight - scanHeight) / 2;
-
-        canvas.width = scanWidth;
-        canvas.height = scanHeight;
-
-        // ビデオ映像から中央部分だけをキャンバスに描く
-        context.drawImage(video, startX, startY, scanWidth, scanHeight, 0, 0, scanWidth, scanHeight);
-
-        try {
-            // Tesseractで数字だけを読み取る
-            const result = await Tesseract.recognize(canvas, 'eng', {
-                tessedit_char_whitelist: '0123456789' // 数字のみに限定
-            });
-
-            const text = result.data.text.replace(/\s+/g, ''); // 空白を消す
-            console.log("読み取った数字:", text);
-
-            if (text.includes(targetCode)) {
-                // 【一致した場合】
-                success(text);
-            } else {
-                // 【不一致の場合】1秒後に再挑戦
-                setTimeout(recognize, 1000);
+        // カメラ起動
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment", width: 1280, height: 720 } 
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    resultDisplay.innerText = "準備完了（枠に合わせて押す）";
+                    startBtn.disabled = false;
+                };
+            } catch (err) {
+                resultDisplay.innerText = "カメラ起動失敗";
             }
-        } catch (e) {
-            console.error(e);
-            setTimeout(recognize, 1000);
         }
-    }
 
-    // 3. 成功時のアクション
-    function success(code) {
-        resultDisplay.innerText = "一致！: " + code;
-        document.body.style.backgroundColor = "blue"; // 画面を青くする
-        
-        // バイブレーション（Androidのみ動作）
-        if (navigator.vibrate) {
-            navigator.vibrate(200); 
-        }
-        
-        // 5秒後に元の状態に戻して、次のスキャンへ（テスト用）
-        setTimeout(() => {
+        // 解析処理
+        async function recognize() {
+            startBtn.disabled = true;
+            resultDisplay.innerText = "解析中...";
             document.body.style.backgroundColor = "black";
-            recognize();
-        }, 5000);
-    }
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            
+            // 枠の部分を計算して切り抜く
+            const videoW = video.videoWidth;
+            const videoH = video.videoHeight;
+            const scanW = videoW * 0.7;
+            const scanH = videoH * 0.2;
+            const startX = (videoW - scanW) / 2;
+            const startY = (videoH - scanH) / 2;
+
+            canvas.width = scanW;
+            canvas.height = scanH;
+            context.drawImage(video, startX, startY, scanW, scanH, 0, 0, scanW, scanH);
+
+            try {
+                // OCR実行
+                const result = await Tesseract.recognize(canvas, 'eng', {
+                    tessedit_char_whitelist: '0123456789'
+                });
+
+                const text = result.data.text.replace(/\s+/g, '');
+                console.log("読取:", text);
+
+                if (text.includes(targetCode)) {
+                    // 【一致】
+                    resultDisplay.innerText = "【一致】荷下ろしOK！(" + text + ")";
+                    resultDisplay.style.color = "#00ffff";
+                    document.body.style.backgroundColor = "blue";
+                    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                } else {
+                    // 【不一致】
+                    resultDisplay.innerText = "不一致: " + (text || "読取不可");
+                    resultDisplay.style.color = "#ff4444";
+                    document.body.style.backgroundColor = "#330000";
+                    if (navigator.vibrate) navigator.vibrate(500); 
+                }
+            } catch (e) {
+                resultDisplay.innerText = "エラー発生";
+            } finally {
+                // 3秒後にボタンを復活
+                setTimeout(() => {
+                    startBtn.disabled = false;
+                    resultDisplay.innerText = "次のスキャン準備完了";
+                    resultDisplay.style.color = "#ffff00";
+                }, 2000);
+            }
+        }
+
+        // ボタンにイベントを登録
+        startBtn.addEventListener('click', recognize);
+
+        // 起動
+        startCamera();
     </script>
 </body>
 </html>
