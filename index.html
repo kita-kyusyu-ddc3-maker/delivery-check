@@ -3,46 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>誤配防止OCR v3</title>
+    <title>誤配防止OCR v4</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; background: #000; color: white; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; }
         
-        /* カメラ映像エリア（上部） */
         #video-container { position: relative; width: 100%; flex: 1; background: #222; overflow: hidden; }
         #video { width: 100%; height: 100%; object-fit: cover; }
         
-        /* 読み取りガイド枠（中央に細長く） */
+        /* ガイド枠を「角だけ」にして視認性アップ */
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.4);
+            background: rgba(0,0,0,0.3);
         }
         .guide-box {
-            width: 260px; height: 60px; /* メインの数字に合わせるサイズ */
-            border: 3px solid #00ff00;
-            box-shadow: 0 0 20px rgba(0,255,0,0.8);
-            background: rgba(255,255,255,0.05);
+            width: 300px; height: 100px; /* 少し広げました */
+            position: relative;
+            border: 2px solid rgba(0, 255, 0, 0.3); /* 薄い枠 */
         }
+        /* 四隅のコーナー表示 */
+        .guide-box::before, .guide-box::after {
+            content: ""; position: absolute; width: 20px; height: 20px; border: 4px solid #00ff00;
+        }
+        .guide-box::before { top: -4px; left: -4px; border-right: 0; border-bottom: 0; }
+        .guide-box::after { bottom: -4px; right: -4px; border-left: 0; border-top: 0; }
 
-        /* 下部操作パネル（被らないように独立） */
-        .control-panel {
-            background: #111; padding: 20px; border-top: 2px solid #333;
-            display: flex; flex-direction: column; align-items: center;
-        }
+        .control-panel { background: #111; padding: 20px; border-top: 2px solid #333; display: flex; flex-direction: column; align-items: center; }
         .target-info { font-size: 14px; color: #888; margin-bottom: 8px; }
-        .target-info strong { color: #00ff00; font-size: 20px; }
+        .target-info strong { color: #00ff00; font-size: 24px; letter-spacing: 2px; }
         #result { font-size: 18px; font-weight: bold; color: #ffff00; margin-bottom: 20px; text-align: center; min-height: 24px; }
         
         #start-btn {
-            width: 90%; max-width: 300px; height: 65px; 
+            width: 90%; max-width: 320px; height: 70px; 
             background: #0088ff; color: white; border: none; border-radius: 15px; 
-            font-size: 22px; font-weight: bold; cursor: pointer;
-            box-shadow: 0 5px 0 #0055aa;
+            font-size: 24px; font-weight: bold; box-shadow: 0 5px 0 #0055aa;
         }
         #start-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #0055aa; }
-        #start-btn:disabled { background: #444; box-shadow: none; color: #888; }
+        #start-btn:disabled { background: #444; color: #888; box-shadow: none; }
     </style>
 </head>
 <body>
@@ -56,7 +55,7 @@
     
     <div class="control-panel">
         <div class="target-info">ターゲット: <strong>123456</strong></div>
-        <div id="result">準備中...</div>
+        <div id="result">準備完了</div>
         <button id="start-btn" disabled>スキャン開始</button>
     </div>
 
@@ -69,31 +68,26 @@
         async function startCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment", width: 1280, height: 720 } 
+                    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } 
                 });
                 video.srcObject = stream;
-                video.onloadedmetadata = () => {
-                    resultDisplay.innerText = "枠をメインの数字に合わせて！";
-                    startBtn.disabled = false;
-                };
-            } catch (err) {
-                resultDisplay.innerText = "カメラ起動失敗";
-            }
+                video.onloadedmetadata = () => { startBtn.disabled = false; };
+            } catch (err) { resultDisplay.innerText = "カメラエラー"; }
         }
 
         async function recognize() {
             startBtn.disabled = true;
-            resultDisplay.innerText = "解析中...";
+            resultDisplay.innerText = "読み取り中...";
             document.body.style.backgroundColor = "black";
 
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             
-            // 映像からガイド枠の部分だけを厳密に切り出す
+            // 枠の範囲を広めに切り出し
             const videoW = video.videoWidth;
             const videoH = video.videoHeight;
-            const scanW = videoW * 0.5; // 少し狭めて周囲のノイズをカット
-            const scanH = videoH * 0.12; 
+            const scanW = videoW * 0.7; 
+            const scanH = videoH * 0.25; 
             const startX = (videoW - scanW) / 2;
             const startY = (videoH - scanH) / 2;
 
@@ -102,26 +96,28 @@
             context.drawImage(video, startX, startY, scanW, scanH, 0, 0, scanW, scanH);
 
             try {
-                const result = await Tesseract.recognize(canvas, 'eng', {
-                    tessedit_char_whitelist: '0123456789' // 数字のみ認識
-                });
+                // eng(英語)に加えて文字認識の癖を補正
+                const result = await Tesseract.recognize(canvas, 'eng');
 
-                // 読み取った文字列から数字以外を完全に排除
-                let text = result.data.text.replace(/[^0-9]/g, '');
-                console.log("生データ:", text);
+                // 補正ロジック: 「I」「l」「|」を「1」に、「O」を「0」に変換
+                let rawText = result.data.text;
+                let processedText = rawText
+                    .replace(/[Il|]/g, '1') 
+                    .replace(/[O]/g, '0')
+                    .replace(/[^0-9]/g, ''); // 最後に数字以外を消す
 
-                // 6桁ちょうど、またはターゲットを含む場合のみ「一致」とみなす
-                if (text === targetCode || text.includes(targetCode)) {
+                console.log("認識結果:", processedText);
+
+                if (processedText.includes(targetCode)) {
                     resultDisplay.innerText = "【一致】荷下ろしOK！";
                     resultDisplay.style.color = "#00ffff";
                     document.body.style.backgroundColor = "blue";
                     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
                 } else {
-                    // 読み取ったのが違う数字だった場合
-                    resultDisplay.innerText = "不一致: " + (text || "読取不可");
+                    resultDisplay.innerText = "不一致: " + (processedText || "読取不可");
                     resultDisplay.style.color = "#ff4444";
                     document.body.style.backgroundColor = "#330000";
-                    if (navigator.vibrate) navigator.vibrate(500); 
+                    if (navigator.vibrate) navigator.vibrate(400); 
                 }
             } catch (e) {
                 resultDisplay.innerText = "エラー";
@@ -129,10 +125,7 @@
                 setTimeout(() => {
                     startBtn.disabled = false;
                     resultDisplay.style.color = "#ffff00";
-                    if(document.body.style.backgroundColor !== "blue") {
-                        resultDisplay.innerText = "もう一度スキャン";
-                    }
-                }, 2000);
+                }, 1500);
             }
         }
 
