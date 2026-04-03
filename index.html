@@ -3,21 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>誤配防止OCR v7</title>
+    <title>誤配防止OCR v8</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
-        /* 画面全体を固定 */
+        /* 全体設定 */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
             background: #000; color: white; font-family: sans-serif; 
             height: 100vh; width: 100vw;
             display: flex; flex-direction: column; 
-            overflow: hidden; /* スクロールさせない */
+            overflow: hidden; touch-action: manipulation;
+        }
+
+        /* 横向きになった時に警告を出す、またはレイアウトを維持する設定 */
+        @media screen and (orientation: landscape) {
+            body::after {
+                content: "画面を縦向きにして使用してください";
+                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                background: #000; color: #fff; display: flex; align-items: center;
+                justify-content: center; z-index: 9999; font-size: 20px;
+            }
         }
         
-        /* カメラエリア（画面の約60%） */
+        /* カメラエリア（上部固定） */
         #v-container { 
-            position: relative; width: 100%; height: 60vh; 
+            position: relative; width: 100%; height: 65vh; 
             background: #222; overflow: hidden;
         }
         #video { width: 100%; height: 100%; object-fit: cover; }
@@ -28,29 +38,33 @@
             display: flex; align-items: center; justify-content: center; 
             background: rgba(0,0,0,0.4); 
         }
-        .guide-box { width: 280px; height: 80px; border: 2px solid rgba(255,255,255,0.3); position: relative; }
+        .guide-box { 
+            width: 280px; height: 80px; 
+            border: 2px solid rgba(255,255,255,0.3); 
+            position: relative;
+        }
         .guide-box::before { content: ""; position: absolute; top: -5px; left: -5px; width: 30px; height: 30px; border: 5px solid #00ff00; border-right: 0; border-bottom: 0; }
         .guide-box::after { content: ""; position: absolute; bottom: -5px; right: -5px; width: 30px; height: 30px; border: 5px solid #00ff00; border-left: 0; border-top: 0; }
 
-        /* 操作パネル（画面の約40%） */
+        /* 操作パネル（下部固定） */
         .panel { 
-            flex: 1; background: #111; border-top: 2px solid #333; 
-            display: flex; flex-direction: column; align-items: center; justify-content: space-evenly;
-            padding: 10px 0 25px 0; /* 下側に余裕を持たせる */
+            height: 35vh; background: #111; border-top: 3px solid #333; 
+            display: flex; flex-direction: column; align-items: center; justify-content: space-around;
+            padding-bottom: env(safe-area-inset-bottom); /* iPhoneのバー対策 */
         }
         .target { font-size: 14px; color: #aaa; }
-        .target b { color: #00ff00; font-size: 24px; }
-        #result { font-size: 18px; font-weight: bold; color: #ffff00; text-align: center; padding: 0 10px; }
+        .target b { color: #00ff00; font-size: 28px; letter-spacing: 2px; }
+        #result { font-size: 18px; font-weight: bold; color: #ffff00; text-align: center; height: 1.5em; }
         
-        /* 青いボタン：隠れないようにサイズと余白を調整 */
+        /* スキャンボタン（大きく押しやすく） */
         #btn { 
-            width: 85%; height: 60px; 
+            width: 85%; height: 70px; 
             background: #0088ff; color: #fff; 
-            border: none; border-radius: 12px; 
-            font-size: 22px; font-weight: bold;
-            box-shadow: 0 4px 0 #0055aa;
+            border: none; border-radius: 16px; 
+            font-size: 24px; font-weight: bold;
+            box-shadow: 0 5px 0 #0055aa;
         }
-        #btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #0055aa; }
+        #btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #0055aa; }
         #btn:disabled { background: #444; color: #888; box-shadow: none; }
     </style>
 </head>
@@ -97,7 +111,6 @@
             const vW = video.videoWidth;
             const vH = video.videoHeight;
             
-            // 枠の範囲だけを切り取る
             const sW = vW * 0.6; 
             const sH = vH * 0.15; 
             const sX = (vW - sW) / 2;
@@ -111,11 +124,10 @@
             try {
                 const res = await Tesseract.recognize(canvas, 'eng');
                 let raw = res.data.text;
-                // 1の認識補正
                 let clean = raw.replace(/[Il|i]/g, '1').replace(/[^0-9]/g, '');
 
                 if (clean.includes(targetCode)) {
-                    resultDisplay.innerText = "【一致】OK！";
+                    resultDisplay.innerText = "【一致】荷下ろしOK！";
                     resultDisplay.style.color = "#00ffff";
                     document.body.style.backgroundColor = "blue";
                     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
@@ -123,6 +135,7 @@
                     resultDisplay.innerText = "不一致: " + (clean || "読取不可");
                     resultDisplay.style.color = "#ff4444";
                     document.body.style.backgroundColor = "#330000";
+                    if (navigator.vibrate) navigator.vibrate(400);
                 }
             } catch (e) {
                 resultDisplay.innerText = "エラー：再試行してください";
@@ -131,6 +144,7 @@
                     btn.disabled = false;
                     if (document.body.style.backgroundColor !== "blue") {
                         resultDisplay.style.color = "#ffff00";
+                        resultDisplay.innerText = "スキャン待機中";
                     }
                 }, 2000);
             }
