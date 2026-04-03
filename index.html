@@ -39,43 +39,87 @@
 
     <script>
         const video = document.getElementById('video');
-        const resultDisplay = document.getElementById('result');
-        const targetCode = "123456"; // ここにスプレッドシート等からのコードを入れる
+    const resultDisplay = document.getElementById('result');
+    const targetCode = "123456"; // 照合したい店舗コード
 
-        // カメラの起動
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then(stream => { video.srcObject = stream; })
-            .catch(err => alert("カメラが起動できません: " + err));
+    // 1. カメラの起動（設定をより詳細に）
+    navigator.mediaDevices.getUserMedia({ 
+        video: { 
+            facingMode: "environment", // 外カメラ
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+        } 
+    })
+    .then(stream => { 
+        video.srcObject = stream;
+        video.onloadedmetadata = () => {
+            video.play();
+            // カメラが安定するまで2秒待ってからスキャン開始
+            setTimeout(recognize, 2000);
+        };
+    })
+    .catch(err => {
+        alert("カメラの起動に失敗しました。ブラウザの設定で許可してください。");
+    });
 
-        // 認識処理（一定間隔で実行）
-        async function recognize() {
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
+    // 2. 文字認識（OCR）のメイン処理
+    async function recognize() {
+        resultDisplay.innerText = "スキャン中...";
 
-            // Tesseractで数字のみを認識
+        // 画面の中央部分だけを切り取って解析する（精度向上のため）
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        // 切り取り範囲（枠のサイズに合わせて調整）
+        const scanWidth = video.videoWidth * 0.6; // 画面幅の60%
+        const scanHeight = 100;
+        const startX = (video.videoWidth - scanWidth) / 2;
+        const startY = (video.videoHeight - scanHeight) / 2;
+
+        canvas.width = scanWidth;
+        canvas.height = scanHeight;
+
+        // ビデオ映像から中央部分だけをキャンバスに描く
+        context.drawImage(video, startX, startY, scanWidth, scanHeight, 0, 0, scanWidth, scanHeight);
+
+        try {
+            // Tesseractで数字だけを読み取る
             const result = await Tesseract.recognize(canvas, 'eng', {
-                tessedit_char_whitelist: '0123456789'
+                tessedit_char_whitelist: '0123456789' // 数字のみに限定
             });
 
-            const text = result.data.text.trim();
+            const text = result.data.text.replace(/\s+/g, ''); // 空白を消す
+            console.log("読み取った数字:", text);
+
             if (text.includes(targetCode)) {
-                // 一致した場合
-                success();
+                // 【一致した場合】
+                success(text);
+            } else {
+                // 【不一致の場合】1秒後に再挑戦
+                setTimeout(recognize, 1000);
             }
-            requestAnimationFrame(recognize);
-        }
-
-        function success() {
-            resultDisplay.innerText = "一致！OK";
-            document.body.style.backgroundColor = "blue";
-            if (navigator.vibrate) navigator.vibrate(200); // 1回バイブ
-        }
-
-        video.addEventListener('play', () => {
+        } catch (e) {
+            console.error(e);
             setTimeout(recognize, 1000);
-        });
+        }
+    }
+
+    // 3. 成功時のアクション
+    function success(code) {
+        resultDisplay.innerText = "一致！: " + code;
+        document.body.style.backgroundColor = "blue"; // 画面を青くする
+        
+        // バイブレーション（Androidのみ動作）
+        if (navigator.vibrate) {
+            navigator.vibrate(200); 
+        }
+        
+        // 5秒後に元の状態に戻して、次のスキャンへ（テスト用）
+        setTimeout(() => {
+            document.body.style.backgroundColor = "black";
+            recognize();
+        }, 5000);
+    }
     </script>
 </body>
 </html>
