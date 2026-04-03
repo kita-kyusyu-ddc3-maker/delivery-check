@@ -34,92 +34,65 @@
         <div id="result">初期化中...</div>
         <button id="btn" disabled>スキャン開始</button>
     </div>
+<script>
+    const video = document.getElementById('video');
+    const resultDisplay = document.getElementById('result');
+    const btn = document.getElementById('btn');
+    const targetCode = "123456"; 
 
-    <script>
-        const video = document.getElementById('video');
-        const resultDisplay = document.getElementById('result');
-        const btn = document.getElementById('btn');
-        const targetCode = "123456"; 
-
-        // カメラ起動処理
-        async function initCamera() {
-            try {
-                resultDisplay.innerText = "カメラ起動中...";
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } 
-                });
-                video.srcObject = stream;
-                video.onloadedmetadata = () => {
-                    btn.disabled = false;
-                    resultDisplay.innerText = "枠に数字を合わせてスキャン";
-                };
-            } catch (e) {
-                resultDisplay.innerText = "エラー: カメラが見つかりません";
-                console.error(e);
-            }
+    // カメラを起動する関数
+    async function start() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: "environment" } 
+            });
+            video.srcObject = stream;
+            // ビデオが再生可能になったらボタンを出す
+            video.onloadeddata = () => {
+                btn.disabled = false;
+                resultDisplay.innerText = "準備完了：枠に合わせて押す";
+            };
+        } catch (e) {
+            resultDisplay.innerText = "カメラ許可が必要です";
         }
+    }
 
-        // スキャン実行
-        async function scan() {
-            btn.disabled = true;
-            resultDisplay.innerText = "読み取り中...";
-            document.body.style.backgroundColor = "black";
-
-            // 一時的なキャンバスを作成
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // 映像のサイズを取得
-            const vW = video.videoWidth;
-            const vH = video.videoHeight;
-            
-            // 枠の範囲だけを切り取る（中央の50%幅、15%高さ）
-            const sW = vW * 0.5; 
-            const sH = vH * 0.15; 
-            const sX = (vW - sW) / 2;
-            const sY = (vH - sH) / 2;
-
-            canvas.width = sW;
-            canvas.height = sH;
-            ctx.drawImage(video, sX, sY, sW, sH, 0, 0, sW, sH);
-
-            try {
-                // Tesseractで解析
-                const res = await Tesseract.recognize(canvas, 'eng');
-                let raw = res.data.text;
-                
-                // 1の認識漏れ対策：似た文字を1に置換してから、数字のみ抽出
-                let clean = raw.replace(/[Il|i]/g, '1').replace(/[^0-9]/g, '');
-                console.log("読取結果:", clean);
-
-                if (clean.includes(targetCode)) {
-                    resultDisplay.innerText = "【一致】荷下ろしOK！";
-                    resultDisplay.style.color = "#00ffff";
-                    document.body.style.backgroundColor = "blue";
-                    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-                } else {
-                    resultDisplay.innerText = "不一致: " + (clean || "読取不可");
-                    resultDisplay.style.color = "#ff4444";
-                    document.body.style.backgroundColor = "#330000";
-                    if (navigator.vibrate) navigator.vibrate(400); 
-                }
-            } catch (e) {
-                resultDisplay.innerText = "解析エラーが発生しました";
-            } finally {
-                // 2秒後にボタンを復活
-                setTimeout(() => {
-                    btn.disabled = false;
-                    if (document.body.style.backgroundColor !== "blue") {
-                        resultDisplay.style.color = "#ffff00";
-                    }
-                }, 2000);
-            }
-        }
-
-        btn.addEventListener('click', scan);
+    // スキャンする関数
+    async function doScan() {
+        btn.disabled = true;
+        resultDisplay.innerText = "読み取り中...";
         
-        // ページ読み込み時に実行
-        window.onload = initCamera;
-    </script>
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth * 0.5;
+        canvas.height = video.videoHeight * 0.15;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, video.videoWidth*0.25, video.videoHeight*0.42, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+
+        try {
+            const res = await Tesseract.recognize(canvas, 'eng');
+            let txt = res.data.text.replace(/[Il|i]/g, '1').replace(/[^0-9]/g, '');
+            
+            if (txt.includes(targetCode)) {
+                resultDisplay.innerText = "【一致】OK！";
+                document.body.style.backgroundColor = "blue";
+                if(navigator.vibrate) navigator.vibrate(200);
+            } else {
+                resultDisplay.innerText = "不一致: " + (txt || "読取不可");
+                document.body.style.backgroundColor = "#330000";
+            }
+        } catch (e) {
+            resultDisplay.innerText = "エラー再試行";
+        } finally {
+            setTimeout(() => { btn.disabled = false; }, 2000);
+        }
+    }
+
+    // ボタンに機能を割り当てる
+    btn.onclick = doScan;
+
+    // 画面が開いたらカメラ起動
+    start();
+</script>
+    
 </body>
 </html>
