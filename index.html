@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v21</title>
+    <title>Scanner VIOLET v22</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -16,46 +16,69 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: var(--bg); color: #000; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body { 
+            background: var(--bg); color: #000; font-family: sans-serif; 
+            height: 100vh; width: 100vw; display: flex; flex-direction: column; 
+            overflow: hidden; 
+        }
 
-        /* 1段目：コース - 順番 (226 - 02) */
-        .top-id-bar { height: 65px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 40px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        /* 1段目：コース - 順番 (確実に表示するため高さを固定) */
+        .top-id-bar { 
+            height: 70px; min-height: 70px;
+            background: var(--purple-accent); color: white; 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: 900; font-size: 42px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
 
-        /* ヘッダーエリア (2段目〜4段目) */
-        .header { height: 35vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; text-align: center; }
+        /* ヘッダーエリア (2段目〜4段目：高さを調整) */
+        .header { 
+            flex: 1; max-height: 30vh;
+            display: flex; flex-direction: column; justify-content: center; 
+            align-items: center; padding: 10px; text-align: center; 
+        }
         /* 2段目：店舗名 (最大) */
-        .line-name { font-size: 40px; font-weight: 900; color: #000; line-height: 1.1; margin-bottom: 5px; width: 95%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-        /* 3段目：正解コード (2番目) */
-        .line-code { font-size: 48px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; }
-        /* 4段目：結果 */
-        .line-result { font-size: 26px; font-weight: 900; height: 1.2em; margin-top: 5px; color: #888; }
+        .line-name { font-size: 38px; font-weight: 900; color: #000; line-height: 1.1; width: 95%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        /* 3段目：正解コード */
+        .line-code { font-size: 52px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; margin: 5px 0; }
+        /* 4段目：結果表示 */
+        .line-result { font-size: 26px; font-weight: 900; height: 1.2em; color: #888; }
 
-        /* カメラエリア */
-        #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; }
-        .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; }
+        /* カメラエリア (高さを25%に固定) */
+        #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; display: flex; align-items: center; justify-content: center; }
+        .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
         #video { width: 100%; height: 100%; object-fit: cover; }
         
-        /* ガイド枠（少し細く修正） */
+        /* ガイド枠（細線） */
         .guide-rect { 
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             width: 280px; height: 80px; border: 2px solid var(--purple-accent); border-radius: 15px; 
-            box-shadow: 0 0 15px rgba(108, 92, 231, 0.3); 
+            box-shadow: 0 0 15px rgba(108, 92, 231, 0.3); z-index: 10;
         }
 
-        /* 手入力モーダル（確実にキーボードを出すため） */
+        /* 手入力用モーダル */
         #manual-box {
-            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 4000;
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 4000;
             flex-direction: column; align-items: center; justify-content: center; padding: 20px;
         }
         #manual-input {
-            width: 80%; padding: 15px; font-size: 40px; text-align: center; border-radius: 15px; border: none; letter-spacing: 10px; margin-bottom: 20px;
+            width: 90%; padding: 15px; font-size: 45px; text-align: center; border-radius: 15px; border: 4px solid var(--purple-accent); 
+            background: white; color: black; letter-spacing: 10px; margin-bottom: 30px;
         }
 
-        /* フッターエリア */
+        /* フッターエリア (35%) */
         .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
-        .btn-side { width: 75px; height: 75px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 40px; }
-        #scan-main { width: 150px; height: 150px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 32px; font-weight: 900; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        #scan-main:active { box-shadow: var(--inner); }
+        .btn-side { width: 75px; height: 75px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 40px; display: flex; align-items: center; justify-content: center; }
+        
+        /* 丸型スキャンボタン */
+        #scan-main { 
+            width: 155px; height: 155px; border-radius: 50%; border: none; 
+            background: var(--bg); box-shadow: var(--shadow); 
+            color: var(--purple-accent); font-size: 34px; font-weight: 900; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+        }
+        #scan-main:active { box-shadow: var(--inner); transform: scale(0.95); }
 
         #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: 0.3s; z-index: 1000; }
         .match { background: radial-gradient(circle, rgba(0,138,138,0.4) 0%, transparent 70%); }
@@ -82,12 +105,13 @@
     </div>
 
     <div id="manual-box">
-        <h2 style="color:white; margin-bottom:20px;">コードを直接入力</h2>
-        <input type="tel" id="manual-input" maxlength="6" placeholder="000000">
-        <button class="btn-side" style="width:140px; border-radius:15px; font-size:20px;" onclick="closeManual()">キャンセル</button>
+        <h2 style="color:white; margin-bottom:20px;">数字を直接入力</h2>
+        <input type="tel" id="manual-input" maxlength="6" placeholder="------" autocomplete="off">
+        <button class="btn-side" style="width:160px; border-radius:15px; font-size:20px;" onclick="closeManual()">戻る</button>
     </div>
 
     <div id="flash"></div>
+
     <div id="top-id-display" class="top-id-bar">--- - --</div>
 
     <div class="header">
@@ -112,7 +136,6 @@
     <script>
         const db = {}; 
         function genData() {
-            // 226コースのテストデータ
             db[226] = [{n:"博多吉塚六丁目", c:"357280"}, {n:"博多駅前支店", c:"123456"}];
             for(let c=101; c<=134; c++) if(!db[c]) db[c] = [{n:`第1配送センター`, c:`${c}001`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
             for(let c=201; c<=234; c++) if(!db[c]) db[c] = [{n:`駅前商店`, c:`${c}111`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
@@ -120,7 +143,7 @@
         }
         genData();
 
-        let myCourse = localStorage.getItem('violet_v21') || null;
+        let myCourse = localStorage.getItem('violet_v22') || null;
         let idx = 0;
         let audio = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -132,7 +155,7 @@
                 o.frequency.setValueAtTime(f, now + i*0.06);
                 o.connect(g); g.connect(audio.destination);
                 g.gain.setValueAtTime(0.1, now + i*0.06);
-                osc = o; o.start(now + i*0.06); o.stop(now + i*0.06 + 0.05);
+                o.start(now + i*0.06); o.stop(now + i*0.06 + 0.05);
             });
         }
 
@@ -152,7 +175,7 @@
 
         function startApp() {
             myCourse = document.getElementById('course-in').value;
-            localStorage.setItem('violet_v21', myCourse);
+            localStorage.setItem('violet_v22', myCourse);
             document.getElementById('setup-screen').style.display = 'none';
             boot();
         }
@@ -187,14 +210,14 @@
             } catch (e) { alert("Camera Error"); }
         }
 
-        // 手入力の開閉
         function openManual() {
             document.getElementById('manual-box').style.display = 'flex';
-            document.getElementById('manual-input').focus();
+            const input = document.getElementById('manual-input');
+            input.value = "";
+            input.focus();
         }
         function closeManual() {
             document.getElementById('manual-box').style.display = 'none';
-            document.getElementById('manual-input').value = "";
         }
         document.getElementById('manual-input').addEventListener('input', function(e) {
             if(this.value.length === 6) {
