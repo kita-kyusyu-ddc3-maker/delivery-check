@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v28</title>
+    <title>Scanner VIOLET v29</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -16,25 +16,40 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: var(--bg); color: #000; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* 1段目：コース - 順番 */
         .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; }
         .settings-btn { background: none; border: none; color: white; font-size: 30px; }
         .course-title { font-size: 38px; flex-grow: 1; text-align: center; margin-right: 30px; }
+
+        /* ヘッダーエリア（2〜4段目） */
         .header { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; text-align: center; }
         .line-name { font-size: 38px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; overflow: hidden; }
         .line-code { font-size: 55px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; }
         .line-result { font-size: 26px; font-weight: 900; height: 1.2em; color: #888; margin-top: 5px; }
+
+        /* カメラエリア */
         #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; display: flex; align-items: center; justify-content: center; }
         .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; }
         #video { width: 100%; height: 100%; object-fit: cover; }
-        .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 80px; border: 2px solid var(--purple-accent); border-radius: 15px; z-index: 10; }
+        /* 【重要】ここが手入力のスイッチ */
+        .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 80px; border: 2px solid var(--purple-accent); border-radius: 15px; z-index: 10; cursor: pointer; }
+
+        /* 手入力画面（モーダル） */
+        #manual-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 6000; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        #manual-input { width: 90%; padding: 15px; font-size: 45px; text-align: center; border-radius: 15px; border: 4px solid var(--purple-accent); background: white; color: black; letter-spacing: 10px; margin-bottom: 30px; outline: none; }
+
+        /* フッター */
         .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
         .btn-side { width: 75px; height: 75px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 40px; display: flex; align-items: center; justify-content: center; }
         #scan-main { width: 150px; height: 150px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 34px; font-weight: 900; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         #scan-main:disabled { opacity: 0.5; }
+
         #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: 0.3s; z-index: 1000; }
         .match { background: radial-gradient(circle, rgba(0,138,138,0.4) 0%, transparent 70%); }
         .mismatch { background: radial-gradient(circle, rgba(214,48,49,0.4) 0%, transparent 70%); }
-        #setup-screen { position: fixed; inset: 0; background: var(--bg); z-index: 5000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+
+        #setup-screen { position: fixed; inset: 0; background: var(--bg); z-index: 7000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .setup-card { background: var(--bg); padding: 30px; border-radius: 30px; box-shadow: var(--shadow); width: 90%; text-align: center; }
         select { width: 100%; padding: 20px; font-size: 24px; font-weight: bold; border-radius: 15px; margin: 15px 0; border: none; background: var(--bg); box-shadow: var(--inner); color: var(--purple-accent); outline: none; }
     </style>
@@ -43,7 +58,7 @@
 
     <div id="setup-screen">
         <div class="setup-card">
-            <h2 style="margin-bottom:10px;">設定確定で音が出ます</h2>
+            <h2 style="margin-bottom:10px;">コース設定</h2>
             <select id="shift-in" onchange="loadCourseMenu()">
                 <option value="1">1便 (101-134)</option>
                 <option value="2">2便 (201-234)</option>
@@ -52,6 +67,12 @@
             <select id="course-in"></select>
             <button class="btn-side" style="width:100%; border-radius:15px; margin-top:20px; font-size:24px; height:60px; box-shadow: var(--shadow);" onclick="startApp()">確定</button>
         </div>
+    </div>
+
+    <div id="manual-box">
+        <h2 style="color:white; margin-bottom:20px;">番号を直接入力</h2>
+        <input type="tel" id="manual-input" maxlength="6" placeholder="------" autocomplete="off">
+        <button class="btn-side" style="width:160px; border-radius:15px; font-size:20px;" onclick="closeManual()">戻る</button>
     </div>
 
     <div id="flash"></div>
@@ -69,7 +90,7 @@
     <div id="cam-area">
         <div class="cam-frame">
             <video id="video" autoplay playsinline muted></video>
-            <div class="guide-rect"></div>
+            <div class="guide-rect" onclick="openManual()"></div>
         </div>
     </div>
     
@@ -89,25 +110,21 @@
         }
         genData();
 
-        let myCourse = localStorage.getItem('violet_v28_course') || null;
+        let myCourse = localStorage.getItem('violet_v29_course') || null;
         let idx = 0;
         let audioCtx = null;
         let worker = null;
 
-        // 音の初期化（これをボタン操作時に呼ぶ）
         function initAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
         }
 
-        // Tesseractの初期化（数字のみに制限して高速化）
         async function initWorker() {
             worker = await Tesseract.createWorker();
             await worker.loadLanguage('eng');
             await worker.initialize('eng');
-            await worker.setParameters({
-                tessedit_char_whitelist: '0123456789', // 数字以外は無視
-            });
+            await worker.setParameters({ tessedit_char_whitelist: '0123456789' });
         }
         initWorker();
 
@@ -140,7 +157,7 @@
                 const o2 = audioCtx.createOscillator();
                 o1.connect(g); o2.connect(g);
                 o1.type = 'sawtooth'; o2.type = 'sawtooth';
-                o1.frequency.setValueAtTime(100, now); // さらに低音
+                o1.frequency.setValueAtTime(100, now);
                 o2.frequency.setValueAtTime(105, now);
                 g.gain.setValueAtTime(0.2, now);
                 g.gain.linearRampToValueAtTime(0, now + 0.5);
@@ -159,21 +176,19 @@
                 let o = document.createElement('option');
                 o.value = i; o.text = i + "コース";
                 menu.add(o);
-                if(i == (localStorage.getItem('violet_v28_course') || 226)) o.selected = true;
+                if(i == (localStorage.getItem('violet_v29_course') || 226)) o.selected = true;
             }
         }
 
         function showSetup() { document.getElementById('setup-screen').style.display = 'flex'; loadCourseMenu(); }
-
         function startApp() {
             initAudio();
             myCourse = document.getElementById('course-in').value;
-            localStorage.setItem('violet_v28_course', myCourse);
+            localStorage.setItem('violet_v29_course', myCourse);
             idx = 0;
             document.getElementById('setup-screen').style.display = 'none';
             ui();
         }
-
         function boot() { if(!myCourse) { showSetup(); } else { ui(); cam(); } }
 
         function ui() {
@@ -200,6 +215,23 @@
             } catch (e) { alert("Camera Error"); }
         }
 
+        // 手入力の開閉
+        function openManual() {
+            initAudio();
+            document.getElementById('manual-box').style.display = 'flex';
+            const input = document.getElementById('manual-input');
+            input.value = ""; 
+            setTimeout(() => input.focus(), 100);
+        }
+        function closeManual() { document.getElementById('manual-box').style.display = 'none'; }
+        
+        document.getElementById('manual-input').addEventListener('input', function(e) {
+            if(this.value.length === 6) {
+                checkResult(this.value);
+                setTimeout(closeManual, 500);
+            }
+        });
+
         async function handleScanButton() {
             initAudio();
             playSound('start');
@@ -219,17 +251,12 @@
             canvas.getContext('2d').drawImage(v, (v.videoWidth-sW)/2, (v.videoHeight-sH)/2, sW, sH, 0, 0, canvas.width, canvas.height);
 
             try {
-                // タイムアウト監視（3秒）
                 const scanPromise = worker.recognize(canvas);
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
-                
                 const res = await Promise.race([scanPromise, timeoutPromise]);
                 let raw = res.data.text.replace(/[^0-9]/g, '');
                 checkResult(raw);
-            } catch (e) { 
-                console.error(e);
-                checkResult("??????"); // タイムアウト時はNG判定
-            }
+            } catch (e) { checkResult("??????"); }
             setTimeout(() => { btn.disabled = false; }, 500);
         }
 
@@ -237,7 +264,6 @@
             const resL = document.getElementById('res-label');
             const flash = document.getElementById('flash');
             const target = db[myCourse][idx].c;
-            
             if (input.includes(target)) {
                 resL.innerText = `OK: ${target}`;
                 resL.style.color = "var(--cyan)";
