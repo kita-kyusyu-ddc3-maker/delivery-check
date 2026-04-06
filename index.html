@@ -2,60 +2,54 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>配送照合システム</title>
-    
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="icon" sizes="192x192" href="https://cdn-icons-png.flaticon.com/512/9561/9561688.png">
-    
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
             background: #000; color: white; font-family: sans-serif; 
-            height: 100vh; width: 100vw; display: flex; flex-direction: column; 
-            overflow: hidden; touch-action: manipulation;
+            min-height: 100vh; display: flex; flex-direction: column; 
         }
-
-        /* 号車設定画面 */
+        
+        /* 設定画面 */
         #setup-screen { 
             position: fixed; inset: 0; background: #111; z-index: 2000; 
             display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; 
         }
-        .setup-select { width: 100%; padding: 15px; font-size: 20px; margin-bottom: 20px; background: #333; color: white; border: 1px solid #555; }
-        .setup-btn { background: #0088ff; color: white; border: none; padding: 20px; border-radius: 10px; font-size: 20px; width: 100%; font-weight: bold; }
 
-        /* ヘッダー：配送情報 */
-        .header { background: #222; padding: 10px; border-bottom: 2px solid #444; text-align: center; }
-        .car-num { font-size: 14px; color: #0088ff; font-weight: bold; }
-        .shop-name { font-size: 20px; font-weight: bold; margin: 3px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* ヘッダー（20%） */
+        .header { background: #222; padding: 10px; border-bottom: 2px solid #444; text-align: center; height: 120px; }
+        .car-num { font-size: 14px; color: #0088ff; }
+        .shop-name { font-size: 20px; font-weight: bold; margin: 5px 0; color: #fff; }
         .target-code { font-size: 14px; color: #00ff00; }
-        .target-code b { font-size: 26px; letter-spacing: 2px; }
+        .target-code b { font-size: 28px; letter-spacing: 2px; }
 
-        /* カメラエリア */
-        #v-container { position: relative; width: 100%; flex: 1; background: #000; }
+        /* カメラエリア（50%に抑える） */
+        #v-container { position: relative; width: 100%; height: 50vh; background: #000; overflow: hidden; }
         #video { width: 100%; height: 100%; object-fit: cover; }
         .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); }
-        .guide-box { width: 280px; height: 80px; border: 1px solid rgba(255,255,255,0.2); position: relative; }
+        .guide-box { width: 260px; height: 70px; border: 1px solid rgba(255,255,255,0.3); position: relative; }
         .guide-box::before, .guide-box::after { content: ""; position: absolute; width: 30px; height: 30px; border: 5px solid #00ff00; }
         .guide-box::before { top: -4px; left: -4px; border-right: 0; border-bottom: 0; }
         .guide-box::after { bottom: -4px; right: -4px; border-left: 0; border-top: 0; }
 
-        /* フッター：操作エリア */
-        .footer { background: #111; padding: 15px; text-align: center; }
-        #result { font-size: 18px; font-weight: bold; color: #ffff00; margin-bottom: 12px; height: 1.2em; }
-        .btn-row { display: flex; justify-content: space-between; gap: 10px; width: 100%; }
-        .nav { width: 55px; height: 65px; background: #333; color: white; border: none; border-radius: 8px; font-size: 20px; }
-        #scan { flex: 1; height: 65px; background: #0088ff; color: white; border: none; border-radius: 12px; font-size: 22px; font-weight: bold; box-shadow: 0 4px 0 #0055aa; }
+        /* フッター（ボタンエリア） */
+        .footer { background: #111; padding: 15px; flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #result { font-size: 18px; font-weight: bold; color: #ffff00; margin-bottom: 10px; text-align: center; }
+        .btn-row { display: flex; justify-content: space-between; gap: 10px; width: 100%; max-width: 400px; }
+        .nav { width: 60px; height: 60px; background: #333; color: white; border: none; border-radius: 8px; font-size: 24px; }
+        #scan { flex: 1; height: 70px; background: #0088ff; color: white; border: none; border-radius: 12px; font-size: 22px; font-weight: bold; box-shadow: 0 4px 0 #0055aa; }
         #scan:active { transform: translateY(2px); box-shadow: 0 2px 0 #0055aa; }
     </style>
 </head>
 <body>
 
     <div id="setup-screen" style="display:none;">
-        <h2 style="margin-bottom:20px;">車両設定（Android）</h2>
-        <select id="car-select" class="setup-select"></select>
-        <button class="setup-btn" onclick="saveCarSetting()">配送開始</button>
+        <h2 style="margin-bottom:20px;">車両設定</h2>
+        <select id="car-select" style="width:100%; padding:15px; font-size:20px; margin-bottom:20px;"></select>
+        <button onclick="saveCarSetting()" style="background:#0088ff; color:white; padding:20px; width:100%; border:none; font-size:20px; border-radius:10px;">配送開始</button>
     </div>
 
     <div class="header">
@@ -70,7 +64,7 @@
     </div>
     
     <div class="footer">
-        <div id="result">カメラ起動中...</div>
+        <div id="result">準備中...</div>
         <div class="btn-row">
             <button class="nav" onclick="changeShop(-1)">◀</button>
             <button id="scan" onclick="doScan()">スキャン開始</button>
@@ -79,7 +73,6 @@
     </div>
 
     <script>
-        // 配送データサンプル
         const deliveryData = {
             "1号車": [{ name: "店舗1-A", code: "100001" }, { name: "店舗1-B", code: "100002" }],
             "2号車": [{ name: "店舗2-A", code: "200001" }, { name: "店舗2-B", code: "200002" }]
@@ -108,7 +101,7 @@
         }
 
         function startService() {
-            document.getElementById('display-car').innerText = "🚚 Android端末：" + myCar;
+            document.getElementById('display-car').innerText = "🚚 " + myCar;
             updateDisplay();
             initCamera();
         }
@@ -134,7 +127,7 @@
             const video = document.getElementById('video');
             try {
                 const s = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } 
+                    video: { facingMode: "environment", width: { ideal: 1280 } } 
                 });
                 video.srcObject = s;
                 document.getElementById('result').innerText = "準備完了";
@@ -149,7 +142,6 @@
 
             const v = document.getElementById('video');
             const canvas = document.createElement('canvas');
-            // Androidは解像度が高い場合があるため実サイズから計算
             const sW = v.videoWidth * 0.6; 
             const sH = v.videoHeight * 0.15;
             canvas.width = sW; canvas.height = sH;
@@ -164,7 +156,7 @@
                     resDisp.innerText = "【一致】荷下ろしOK！";
                     resDisp.style.color = "#00ffff";
                     document.body.style.backgroundColor = "blue";
-                    if(navigator.vibrate) navigator.vibrate([100, 50, 100]); // Androidらしいリズム
+                    if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
                 } else {
                     resDisp.innerText = "不一致: " + (txt || "読取不可");
                     resDisp.style.color = "#ff4444";
@@ -174,7 +166,6 @@
             } catch (e) { resDisp.innerText = "スキャン失敗"; }
             setTimeout(() => { btn.disabled = false; }, 2000);
         }
-
         window.onload = initApp;
     </script>
 </body>
