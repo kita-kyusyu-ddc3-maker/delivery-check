@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Logistics Scanner VIOLET v15</title>
+    <title>Scanner VIOLET v16</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -12,77 +12,75 @@
             --purple-accent: #6c5ce7;
             --cyan: #00cec9;
             --red: #ff7675;
-            --shadow: 8px 8px 16px #d1d1d6, -8px -8px 16px #ffffff;
+            --shadow: 6px 6px 12px #d1d1d6, -6px -6px 12px #ffffff;
             --inner: inset 4px 4px 8px #d1d1d6, inset -4px -4px 8px #ffffff;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: var(--bg); color: #444; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body { background: var(--bg); color: #444; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-        /* Setup Screen */
-        #setup-screen { position: fixed; inset: 0; background: var(--bg); z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; }
-        .card { background: var(--bg); padding: 30px; border-radius: 30px; box-shadow: var(--shadow); width: 100%; max-width: 400px; text-align: center; }
-        select { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 15px; background: var(--bg); box-shadow: var(--inner); font-size: 16px; color: var(--purple-accent); outline: none; }
+        /* Setup */
+        #setup-screen { position: fixed; inset: 0; background: var(--bg); z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .card { background: var(--bg); padding: 20px; border-radius: 20px; box-shadow: var(--shadow); width: 90%; text-align: center; }
+        select { width: 100%; padding: 12px; margin: 10px 0; border: none; border-radius: 10px; background: var(--bg); box-shadow: var(--inner); color: var(--purple-accent); font-size: 16px; outline: none; }
         
-        /* Header */
-        .header { padding: 20px 20px; text-align: center; }
-        .info-tag { font-size: 10px; font-weight: bold; color: var(--purple-main); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; }
-        .shop-title { font-size: 22px; font-weight: 600; color: #2d3436; margin-bottom: 5px; height: 1.2em; overflow: hidden; }
-        .target-box { font-size: 13px; color: #636e72; }
-        .target-box b { font-size: 36px; color: var(--purple-accent); font-family: 'Monaco', monospace; letter-spacing: 4px; }
+        /* Header (30%) */
+        .header { height: 25vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; }
+        .info-tag { font-size: 10px; font-weight: bold; color: var(--purple-main); letter-spacing: 2px; margin-bottom: 5px; }
+        .shop-title { font-size: 20px; font-weight: 600; color: #2d3436; margin-bottom: 5px; }
+        .target-box b { font-size: 34px; color: var(--purple-accent); font-family: monospace; letter-spacing: 3px; }
 
-        /* Camera Section */
-        #cam-area { position: relative; width: 100%; flex: 1; padding: 0 15px; display: flex; align-items: center; justify-content: center; }
-        .cam-frame { width: 100%; height: 100%; border-radius: 30px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
-        #video { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; }
+        /* Camera (40% - 強制制限) */
+        #cam-area { height: 40vh; width: 100%; padding: 0 15px; position: relative; }
+        .cam-frame { width: 100%; height: 100%; border-radius: 20px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
+        #video { width: 100%; height: 100%; object-fit: cover; }
         .guide-container { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-        .guide-rect { width: 280px; height: 80px; border: 2px solid rgba(108, 92, 231, 0.2); border-radius: 15px; position: relative; }
-        .guide-rect::after { content: ''; position: absolute; inset: -4px; border: 4px solid var(--purple-accent); border-radius: 18px; opacity: 0.6; box-shadow: 0 0 15px var(--purple-accent); }
+        .guide-rect { width: 240px; height: 60px; border: 2px solid rgba(108, 92, 231, 0.3); border-radius: 10px; position: relative; }
+        .guide-rect::after { content: ''; position: absolute; inset: -4px; border: 3px solid var(--purple-accent); border-radius: 12px; opacity: 0.5; }
 
-        /* Footer Controls */
-        .footer { padding: 25px 20px; display: flex; flex-direction: column; align-items: center; }
-        #msg { font-size: 13px; font-weight: 600; color: var(--purple-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
-        .ctrl-row { width: 100%; display: flex; justify-content: space-between; align-items: center; max-width: 400px; }
+        /* Footer (35%) */
+        .footer { height: 35vh; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; padding-bottom: 15px; }
+        #msg { font-size: 12px; font-weight: bold; color: var(--purple-main); text-transform: uppercase; }
+        .ctrl-row { width: 100%; display: flex; justify-content: space-around; align-items: center; padding: 0 20px; }
         
-        .btn-circle { width: 60px; height: 60px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 20px; cursor: pointer; }
+        .btn-circle { width: 55px; height: 55px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--accent-purple); font-size: 18px; }
         .btn-circle:active { box-shadow: var(--inner); }
 
         #scan-main { 
-            width: 130px; height: 130px; border-radius: 50%; border: none;
+            width: 110px; height: 110px; border-radius: 50%; border: none;
             background: var(--bg); box-shadow: var(--shadow);
-            color: var(--purple-accent); font-size: 20px; font-weight: 800; 
+            color: var(--purple-accent); font-size: 18px; font-weight: 800; 
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        #scan-main:active { box-shadow: var(--inner); transform: scale(0.96); }
-        #scan-main small { font-size: 9px; margin-top: 4px; color: var(--purple-main); letter-spacing: 1px; }
+        #scan-main:active { box-shadow: var(--inner); transform: scale(0.95); }
+        #scan-main small { font-size: 8px; color: var(--purple-main); margin-top: 2px; }
 
-        /* Animation Flash */
-        #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: 0.4s; z-index: 1000; }
-        .match { background: radial-gradient(circle, rgba(0,206,201,0.3) 0%, transparent 75%); }
-        .mismatch { background: radial-gradient(circle, rgba(255,118,117,0.3) 0%, transparent 75%); }
+        #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: 0.3s; z-index: 1000; }
+        .match { background: radial-gradient(circle, rgba(0,206,201,0.3) 0%, transparent 70%); }
+        .mismatch { background: radial-gradient(circle, rgba(255,118,117,0.3) 0%, transparent 70%); }
     </style>
 </head>
 <body>
 
     <div id="setup-screen" style="display:none;">
         <div class="card">
-            <h2 style="color:var(--purple-accent); margin-bottom:15px;">Route Selection</h2>
+            <h3 style="color:var(--purple-accent); margin-bottom:10px;">Route Selection</h3>
             <select id="shift-in" onchange="loadCourseMenu()">
                 <option value="1">1st Shift (101-134)</option>
                 <option value="2">2nd Shift (201-234)</option>
                 <option value="3">3rd Shift (301)</option>
             </select>
             <select id="course-in"></select>
-            <button class="btn-circle" style="width:100%; border-radius:15px; margin-top:20px; font-weight:bold; height:50px;" onclick="startApp()">CONFIRM ROUTE</button>
+            <button class="btn-circle" style="width:100%; border-radius:10px; margin-top:15px; font-size:16px; height:45px;" onclick="startApp()">CONFIRM</button>
         </div>
     </div>
 
     <div id="flash"></div>
 
     <div class="header">
-        <div id="tag-label" class="info-tag">SYSTEM BOOTING</div>
-        <div id="shop-name" class="shop-title">...</div>
-        <div class="target-box">TARGET CODE: <b id="code-target">------</b></div>
+        <div id="tag-label" class="info-tag">BOOTING...</div>
+        <div id="shop-name" class="shop-title">STORE NAME</div>
+        <div class="target-box">TARGET: <b id="code-target">000000</b></div>
     </div>
 
     <div id="cam-area">
@@ -93,7 +91,7 @@
     </div>
     
     <div class="footer">
-        <div id="msg">STANDBY</div>
+        <div id="msg">READY</div>
         <div class="ctrl-row">
             <button class="btn-circle" onclick="stepShop(-1)">◀</button>
             <button id="scan-main" onclick="runScanner()">SCAN<small>6-DIGIT</small></button>
@@ -102,42 +100,31 @@
     </div>
 
     <script>
-        // Data Repository
         const db = {}; 
         function genData() {
-            // 1便: 101-134
-            for(let c=101; c<=134; c++) db[c] = [{n:`Shop ${c}-A`, c:`1${c}001`}, {n:`Shop ${c}-B`, c:`1${c}002`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
-            // 2便: 201-234
-            for(let c=201; c<=234; c++) db[c] = [{n:`Shop ${c}-X`, c:`2${c}999`}, {n:`Shop ${c}-Y`, c:`2${c}888`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
-            // 3便: 301
+            // 全て6桁（0埋め）で生成
+            for(let c=101; c<=134; c++) db[c] = [{n:`Shop ${c}-A`, c:`${c}001`}, {n:`Shop ${c}-B`, c:`${c}002`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
+            for(let c=201; c<=234; c++) db[c] = [{n:`Shop ${c}-X`, c:`${c}111`}, {n:`Shop ${c}-Y`, c:`${c}222`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
             db[301] = [{n:"Night Delivery A", c:"301001"}, {n:"Night Delivery B", c:"301002"}];
         }
         genData();
 
-        let myCourse = localStorage.getItem('violet_c_v15') || null;
+        let myCourse = localStorage.getItem('violet_v16') || null;
         let idx = 0;
         let audio = new (window.AudioContext || window.webkitAudioContext)();
 
-        // New Future Beep (Double-tap high frequency)
-        function playFutureBeep(isMatch) {
+        function playBeep() {
             const now = audio.currentTime;
-            
-            function createTone(freq, start, duration) {
-                const osc = audio.createOscillator();
+            [1200, 1600].forEach((f, i) => {
+                const o = audio.createOscillator();
                 const g = audio.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, start);
-                osc.connect(g); g.connect(audio.destination);
-                g.gain.setValueAtTime(0, start);
-                g.gain.linearRampToValueAtTime(0.1, start + 0.01);
-                g.gain.linearRampToValueAtTime(0, start + duration);
-                osc.start(start); osc.stop(now + start + duration);
-            }
-
-            if(isMatch === 'scan') {
-                createTone(1200, now, 0.05); // Short high beep 1
-                createTone(1500, now + 0.08, 0.05); // Short high beep 2
-            }
+                o.frequency.setValueAtTime(f, now + i*0.06);
+                o.connect(g); g.connect(audio.destination);
+                g.gain.setValueAtTime(0, now + i*0.06);
+                g.gain.linearRampToValueAtTime(0.1, now + i*0.06 + 0.01);
+                g.gain.linearRampToValueAtTime(0, now + i*0.06 + 0.05);
+                o.start(now + i*0.06); o.stop(now + i*0.06 + 0.05);
+            });
         }
 
         function loadCourseMenu() {
@@ -155,7 +142,7 @@
 
         function startApp() {
             myCourse = document.getElementById('course-in').value;
-            localStorage.setItem('violet_c_v15', myCourse);
+            localStorage.setItem('violet_v16', myCourse);
             document.getElementById('setup-screen').style.display = 'none';
             boot();
         }
@@ -172,8 +159,7 @@
             const item = list[idx];
             document.getElementById('shop-name').innerText = item.n;
             document.getElementById('code-target').innerText = item.c;
-            document.getElementById('msg').innerText = `STEP ${idx+1} OF ${list.length}`;
-            document.getElementById('msg').style.color = 'var(--purple-main)';
+            document.getElementById('msg').innerText = `STEP ${idx+1} / ${list.length}`;
         }
 
         function stepShop(d) {
@@ -187,50 +173,41 @@
             try {
                 const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } });
                 v.srcObject = s;
-            } catch (e) { alert("Camera Access Required"); }
+            } catch (e) { alert("Camera Error"); }
         }
 
         async function runScanner() {
             if(audio.state === 'suspended') audio.resume();
-            playFutureBeep('scan');
+            playBeep();
             const btn = document.getElementById('scan-main');
             const msg = document.getElementById('msg');
             const flash = document.getElementById('flash');
-            
             btn.disabled = true;
-            msg.innerText = "VERIFYING...";
+            msg.innerText = "ANALYZING...";
 
             const v = document.getElementById('video');
             const canvas = document.createElement('canvas');
-            // 6桁用に横幅を最適化
             const sW = v.videoWidth * 0.6; const sH = v.videoHeight * 0.15;
             canvas.width = 400; canvas.height = (sH * (400 / sW));
             canvas.getContext('2d').drawImage(v, (v.videoWidth-sW)/2, (v.videoHeight-sH)/2, sW, sH, 0, 0, canvas.width, canvas.height);
 
             try {
                 const res = await Tesseract.recognize(canvas, 'eng');
-                let raw = res.data.text.replace(/[I|i|l|]/g, '1').replace(/[^0-9]/g, '');
+                let raw = res.data.text.replace(/[I|i|l]/g, '1').replace(/[^0-9]/g, '');
                 const target = db[myCourse][idx].c;
-
                 if (raw.includes(target)) {
-                    msg.innerText = "MATCH CONFIRMED";
+                    msg.innerText = "CONFIRMED";
                     msg.style.color = "var(--cyan)";
                     flash.className = "match"; flash.style.opacity = 1;
                     if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
                 } else {
-                    msg.innerText = "MISMATCH / RETRY";
+                    msg.innerText = "MISMATCH";
                     msg.style.color = "var(--red)";
                     flash.className = "mismatch"; flash.style.opacity = 1;
-                    if(navigator.vibrate) navigator.vibrate(400);
                 }
-            } catch (e) { msg.innerText = "SCAN ERROR"; }
-
-            setTimeout(() => { 
-                btn.disabled = false; 
-                flash.style.opacity = 0;
-            }, 1800);
+            } catch (e) { msg.innerText = "ERROR"; }
+            setTimeout(() => { btn.disabled = false; flash.style.opacity = 0; msg.style.color = "var(--purple-main)"; }, 1500);
         }
-
         window.onload = boot;
     </script>
 </body>
