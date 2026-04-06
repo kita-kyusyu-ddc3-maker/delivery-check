@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v30</title>
+    <title>Scanner VIOLET v31</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -17,51 +17,57 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: var(--bg); color: #000; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
+        /* 1段目：コース番号・設定ボタン */
         .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; }
         .settings-btn { background: none; border: none; color: white; font-size: 30px; }
         .course-title { font-size: 38px; flex-grow: 1; text-align: center; margin-right: 30px; }
 
+        /* 2〜4段目：メイン表示エリア */
         .header { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; text-align: center; }
-        .line-name { font-size: 38px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; overflow: hidden; }
-        .line-code { font-size: 55px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; }
-        .line-result { font-size: 26px; font-weight: 900; height: 1.2em; color: #888; margin-top: 5px; }
+        .line-name { font-size: 36px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; overflow: hidden; width: 95%; }
+        .line-code { font-size: 55px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; margin: 5px 0; }
+        .line-result { font-size: 26px; font-weight: 900; height: 1.2em; color: #888; }
 
+        /* カメラエリア */
         #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; display: flex; align-items: center; justify-content: center; }
         .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; }
         #video { width: 100%; height: 100%; object-fit: cover; }
         .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 80px; border: 2px solid var(--purple-accent); border-radius: 15px; z-index: 10; cursor: pointer; }
 
+        /* 手入力モーダル */
         #manual-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 6000; flex-direction: column; align-items: center; justify-content: center; }
-        #manual-input { width: 80%; padding: 15px; font-size: 45px; text-align: center; border-radius: 15px; border: none; margin-bottom: 20px; }
+        #manual-input { width: 80%; padding: 15px; font-size: 45px; text-align: center; border-radius: 15px; border: none; margin-bottom: 20px; outline: none; }
 
+        /* フッターボタンエリア */
         .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
         .btn-side { width: 75px; height: 75px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 40px; display: flex; align-items: center; justify-content: center; }
         
-        /* ロック時はグレー、完了で紫に */
-        #scan-main { width: 150px; height: 150px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 24px; font-weight: 900; }
+        #scan-main { width: 150px; height: 150px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 22px; font-weight: 900; display: flex; flex-direction: column; align-items: center; justify-content: center; outline: none; transition: 0.3s; }
         #scan-main.ready { background: var(--bg); color: var(--purple-accent); font-size: 34px; }
+        #scan-main:active { transform: scale(0.95); box-shadow: var(--inner); }
 
         #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: 0.3s; z-index: 1000; }
         .match { background: radial-gradient(circle, rgba(0,138,138,0.4) 0%, transparent 70%); }
         .mismatch { background: radial-gradient(circle, rgba(214,48,49,0.4) 0%, transparent 70%); }
 
+        /* 初期設定画面 */
         #setup-screen { position: fixed; inset: 0; background: var(--bg); z-index: 7000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .setup-card { background: var(--bg); padding: 30px; border-radius: 30px; box-shadow: var(--shadow); width: 90%; text-align: center; }
-        select { width: 100%; padding: 20px; font-size: 24px; font-weight: bold; border-radius: 15px; margin: 15px 0; border: none; background: var(--bg); box-shadow: var(--inner); color: var(--purple-accent); }
+        .setup-card { background: var(--bg); padding: 30px; border-radius: 30px; box-shadow: var(--shadow); width: 95%; text-align: center; }
+        select { width: 100%; padding: 20px; font-size: 24px; font-weight: bold; border-radius: 15px; margin: 15px 0; border: none; background: var(--bg); box-shadow: var(--inner); color: var(--purple-accent); outline: none; }
     </style>
 </head>
 <body>
 
     <div id="setup-screen">
         <div class="setup-card">
-            <h2 style="margin-bottom:10px;">コース設定</h2>
+            <h2 style="margin-bottom:10px;">コース・便設定</h2>
             <select id="shift-in" onchange="loadCourseMenu()">
                 <option value="1">1便 (101-134)</option>
                 <option value="2">2便 (201-234)</option>
                 <option value="3">3便 (301)</option>
             </select>
             <select id="course-in"></select>
-            <button class="btn-side" style="width:100%; border-radius:15px; margin-top:20px; font-size:24px; height:60px; box-shadow: var(--shadow);" onclick="startApp()">確定</button>
+            <button class="btn-side" style="width:100%; border-radius:15px; margin-top:20px; font-size:24px; height:60px; box-shadow: var(--shadow);" onclick="startApp()">設定を確定</button>
         </div>
     </div>
 
@@ -78,9 +84,9 @@
     </div>
 
     <div class="header">
-        <div id="name-label" class="line-name">博多吉塚六丁目</div>
-        <div id="code-label" class="line-code">357280</div>
-        <div id="res-label" class="line-result">読み込み中...</div>
+        <div id="name-label" class="line-name">準備中...</div>
+        <div id="code-label" class="line-code">000000</div>
+        <div id="res-label" class="line-result">READY</div>
     </div>
 
     <div id="cam-area">
@@ -99,188 +105,62 @@
     <script>
         const db = {}; 
         function genData() {
-            db[226] = [{n:"博多吉塚六丁目", c:"357280"}, {n:"博多駅前支店", c:"123456"}];
-            for(let c=101; c<=134; c++) if(!db[c]) db[c] = [{n:`店舗-${c}-A`, c:`${c}001`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
-            for(let c=201; c<=234; c++) if(!db[c]) db[c] = [{n:`店舗-${c}-X`, c:`${c}111`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
-            db[301] = [{n:"深夜急行支店", c:"301001"}];
-        }
-        genData();
+            // --- 1便 (101-134) ---
+            db[101] = [{n:"福岡東医療センター",c:"267737"},{n:"NHO小倉医療センター",c:"386293"},{n:"北九州総合病院",c:"267720"},{n:"JCHO九州病院",c:"230421"},{n:"八幡東鳴水三丁目",c:"298844"},{n:"S宗像水光会総合病院",c:"241927"}];
+            db[102] = [{n:"福岡県庁",c:"357200"},{n:"福津中央一丁目",c:"128830"},{n:"東福間駅前",c:"226046"},{n:"宗像田熊一丁目",c:"214468"},{n:"くりえいと宗像",c:"145891"},{n:"玄海瀬戸",c:"345070"}];
+            db[103] = [{n:"九州大学病院",c:"368450"},{n:"宗像若木台",c:"117989"},{n:"宗像日の里五丁目",c:"165050"},{n:"宗像曲",c:"191490"},{n:"宗像赤間駅前",c:"368266"}];
+            db[104] = [{n:"下関市立市民病院",c:"226230"},{n:"下関元町",c:"051569"},{n:"下関丸山町",c:"195251"},{n:"彦島江の浦五丁目",c:"026637"},{n:"下関竹崎",c:"344886"},{n:"下関新地町",c:"368208"}];
+            db[105] = [{n:"下関蒲生野",c:"195587"},{n:"下関形山",c:"044397"},{n:"下関秋根本町",c:"026063"},{n:"下関秋根西",c:"146169"},{n:"下関川中本町",c:"226135"},{n:"下関武久町一丁目",c:"368467"}];
+            db[106] = [{n:"築上大平",c:"154536"},{n:"豊前千束",c:"056302"},{n:"豊前久松",c:"230190"},{n:"築上有安",c:"081889"},{n:"椎田天神",c:"368421"}];
+            db[107] = [{n:"北九州市立八幡病院",c:"357239"},{n:"八幡枝光二丁目",c:"230496"},{n:"Sジアウトレット北九州",c:"372718"},{n:"八幡山王一丁目",c:"145796"},{n:"八幡熊手二丁目",c:"298850"}];
+            db[108] = [{n:"若松二島工業団地",c:"195512"},{n:"若松東二島三丁目",c:"226106"},{n:"若松二島三丁目",c:"373008"},{n:"若松ひびきの",c:"230243"},{n:"若松大鳥居",c:"208143"},{n:"若松高須東三丁目",c:"226129"}];
+            db[109] = [{n:"コンテナターミナル入口",c:"242045"},{n:"若松安瀬",c:"235660"},{n:"若松桜町",c:"345012"},{n:"若松浜町三丁目",c:"220865"},{n:"若松警察署前",c:"230237"}];
+            db[110] = [{n:"小倉記念病院",c:"268116"},{n:"小倉西港町",c:"268056"},{n:"小倉田町",c:"145141"},{n:"北九州市立医療センター",c:"381195"},{n:"小倉富士見二丁目",c:"073393"}];
+            db[111] = [{n:"小倉若園三丁目",c:"298614"},{n:"小倉中曽根五丁目",c:"368556"},{n:"苅田幸町",c:"195481"},{n:"苅田京町一丁目",c:"165793"},{n:"苅田下新津",c:"134048"}];
+            db[112] = [{n:"Sミズ芦屋中央病院前",c:"298643"},{n:"自衛隊芦屋基地",c:"386264"},{n:"芦屋高浜町",c:"386347"},{n:"遠賀岡垣町",c:"027803"},{n:"岡垣芹田",c:"345087"},{n:"宗像神湊",c:"230214"}];
+            db[113] = [{n:"JRJP博多ビル",c:"247976"},{n:"S博多マルイビル",c:"248272"},{n:"Sアミュプラザ博多",c:"282990"},{n:"キャナルシティ博多",c:"357179"}];
+            db[114] = [{n:"HD 博多阪急",c:"386287"},{n:"福岡空港国内線",c:"372977"}];
+            db[115] = [{n:"直方感田",c:"200259"},{n:"直方頓野",c:"220670"},{n:"福智上野",c:"176377"},{n:"福智方城",c:"195340"},{n:"みやこ勝山",c:"275010"}];
+            db[116] = [{n:"S宗像徳重二丁目",c:"386695"},{n:"遠賀芦屋町",c:"208338"},{n:"遠賀木守",c:"230131"},{n:"水巻頃末北二丁目",c:"283110"},{n:"中間長津三丁目",c:"283251"},{n:"水巻駅前",c:"242275"}];
+            db[117] = [{n:"自衛隊福岡駐屯地",c:"242074"},{n:"春日大土居二丁目",c:"267944"},{n:"S春日星見ヶ丘六丁目",c:"381427"},{n:"福岡徳洲会病院",c:"235772"},{n:"博多半道橋",c:"220546"},{n:"福岡空港国際線",c:"381433"}];
+            db[118] = [{n:"田川川宮",c:"191299"},{n:"田川後藤寺",c:"128935"},{n:"川崎池尻",c:"235677"},{n:"田川大任町",c:"176696"},{n:"田川松原",c:"357340"}];
+            db[119] = [{n:"小倉霧ケ丘三丁目",c:"282961"},{n:"小倉南葛原五丁目",c:"267683"},{n:"小倉下曽根二丁目",c:"208054"},{n:"九州労災病院前",c:"226218"},{n:"小倉沼本町一丁目",c:"235803"},{n:"S小倉下曽根新町",c:"386689"}];
+            db[120] = [{n:"博多バスターミナル",c:"200489"},{n:"福岡東浜一丁目",c:"363116"},{n:"箱崎九大前",c:"080246"},{n:"箱崎宮前",c:"176756"},{n:"粕屋柚須",c:"208203"}];
+            db[121] = [{n:"飯塚病院",c:"200302"},{n:"飯塚口原",c:"235890"},{n:"嘉穂頴田町",c:"048171"},{n:"西鉄バス直方",c:"283140"}];
+            db[122] = [{n:"嘉麻山野",c:"268010"},{n:"嘉麻山田",c:"230154"},{n:"飯塚綱分",c:"195127"},{n:"飯塚有井",c:"191135"},{n:"飯塚楽市",c:"191081"}];
+            db[123] = [{n:"八幡里中三丁目",c:"275085"},{n:"八幡永犬丸東町",c:"200510"},{n:"八幡鷹の巣",c:"134284"},{n:"八幡竹末二丁目",c:"230220"},{n:"八幡幸神三丁目",c:"248088"}];
+            db[124] = [{n:"西鉄二日市駅西口",c:"241991"},{n:"筑紫野筑紫",c:"076977"},{n:"筑紫野原田三丁目",c:"214570"},{n:"筑紫野石崎一丁目",c:"275145"},{n:"二日市中央",c:"230071"},{n:"筑紫野二日市北",c:"214439"}];
+            db[125] = [{n:"産業医科大学病院",c:"362980"},{n:"S産業医科大学",c:"275056"},{n:"八幡光貞台一丁目",c:"208195"},{n:"八幡医生ヶ丘",c:"134261"},{n:"八幡折尾四丁目",c:"267950"}];
+            db[126] = [{n:"行橋西宮市五丁目",c:"368616"},{n:"行橋中央一丁目",c:"128823"},{n:"行橋泉中央四丁目",c:"363079"},{n:"行橋辻垣",c:"172942"},{n:"築上築城",c:"039137"}];
+            db[127] = [{n:"八幡船越一丁目",c:"165273"},{n:"小嶺インター",c:"220687"},{n:"八幡町上津役東",c:"191365"},{n:"八幡則松七丁目",c:"176532"},{n:"八幡則松六丁目",c:"247924"}];
+            db[128] = [{n:"中間通谷二丁目",c:"248148"},{n:"中間蓮花寺",c:"165416"},{n:"中間三丁目",c:"134841"},{n:"中間大辻町",c:"165936"},{n:"八幡楠橋南",c:"165847"},{n:"やはたのぶ",c:"275004"}];
+            db[129] = [{n:"八幡下上津役一丁目",c:"191431"},{n:"永犬丸五丁目",c:"230438"},{n:"八幡日吉台二丁目",c:"165422"},{n:"水巻梅ノ木",c:"076960"},{n:"水巻牟田",c:"226112"}];
+            db[130] = [{n:"福岡名子三丁目",c:"095590"},{n:"糟屋久山",c:"208404"},{n:"久山久原",c:"195297"},{n:"長者原",c:"128757"},{n:"粕屋口ノ坪",c:"214557"},{n:"Sイオンモール福岡",c:"381203"}];
+            db[131] = [{n:"箱崎ふ頭一丁目",c:"176874"},{n:"箱崎ふ頭五丁目",c:"134835"},{n:"奈多一丁目",c:"154683"},{n:"新宮美咲三丁目",c:"200242"},{n:"新宮緑ケ浜四丁目",c:"363056"},{n:"Sイデックス福岡東SS",c:"357498"}];
+            db[132] = [{n:"福岡多々良二丁目",c:"242097"},{n:"松島インター",c:"077480"},{n:"福岡馬出一丁目",c:"357558"},{n:"香椎浜",c:"344975"},{n:"和白東二丁目",c:"076115"},{n:"新宮夜臼五丁目",c:"298650"}];
+            db[133] = [{n:"穂波町",c:"165267"},{n:"西鉄飯塚バスターミナル",c:"242157"},{n:"飯塚潤野",c:"372931"},{n:"飯塚横田",c:"230088"},{n:"飯塚東川津",c:"226371"}];
+            db[134] = [{n:"宮若竹原",c:"247841"},{n:"福岡宮若長井鶴",c:"235921"},{n:"宮若龍徳",c:"275168"},{n:"宮若上有木",c:"173226"},{n:"若宮インター",c:"095851"}];
 
-        let myCourse = localStorage.getItem('violet_v30_course') || null;
-        let idx = 0;
-        let audioCtx = null;
-        let worker = null;
-
-        function initAudio() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-        }
-
-        async function initAI() {
-            const btn = document.getElementById('scan-main');
-            const resL = document.getElementById('res-label');
-            worker = await Tesseract.createWorker();
-            await worker.loadLanguage('eng');
-            await worker.initialize('eng');
-            await worker.setParameters({ tessedit_char_whitelist: '0123456789' });
-            // 準備完了
-            btn.disabled = false;
-            btn.innerText = "SCAN";
-            btn.classList.add('ready');
-            resL.innerText = "READY";
-        }
-
-        function playSound(type) {
-            initAudio();
-            const now = audioCtx.currentTime;
-            const g = audioCtx.createGain();
-            g.connect(audioCtx.destination);
-            if (type === 'start') {
-                const o = audioCtx.createOscillator();
-                o.connect(g); o.frequency.setValueAtTime(1500, now);
-                g.gain.setValueAtTime(0.1, now);
-                o.start(now); o.stop(now + 0.05);
-            } else if (type === 'ok') {
-                const o1 = audioCtx.createOscillator();
-                o1.connect(g); o1.frequency.setValueAtTime(880, now);
-                g.gain.setValueAtTime(0.1, now);
-                o1.start(now); o1.stop(now + 0.1);
-                setTimeout(() => {
-                    const o2 = audioCtx.createOscillator();
-                    const g2 = audioCtx.createGain();
-                    o2.connect(g2); g2.connect(audioCtx.destination);
-                    o2.frequency.setValueAtTime(1100, audioCtx.currentTime);
-                    g2.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                    o2.start(); o2.stop(audioCtx.currentTime + 0.3);
-                }, 120);
-            } else if (type === 'ng') {
-                const o1 = audioCtx.createOscillator();
-                const o2 = audioCtx.createOscillator();
-                o1.connect(g); o2.connect(g);
-                o1.type = 'sawtooth'; o2.type = 'sawtooth';
-                o1.frequency.setValueAtTime(100, now);
-                o2.frequency.setValueAtTime(105, now);
-                g.gain.setValueAtTime(0.2, now);
-                g.gain.linearRampToValueAtTime(0, now + 0.5);
-                o1.start(now); o2.start(now);
-                o1.stop(now + 0.5); o2.stop(now + 0.5);
-            }
-        }
-
-        function loadCourseMenu() {
-            const s = document.getElementById('shift-in').value;
-            const menu = document.getElementById('course-in');
-            menu.innerHTML = '';
-            let start = s==1?101:s==2?201:301;
-            let end = s==1?134:s==2?234:301;
-            for(let i=start; i<=end; i++) {
-                let o = document.createElement('option');
-                o.value = i; o.text = i + "コース";
-                menu.add(o);
-                if(i == (localStorage.getItem('violet_v30_course') || 226)) o.selected = true;
-            }
-        }
-
-        function showSetup() { document.getElementById('setup-screen').style.display = 'flex'; loadCourseMenu(); }
-        function startApp() {
-            initAudio();
-            myCourse = document.getElementById('course-in').value;
-            localStorage.setItem('violet_v30_course', myCourse);
-            idx = 0;
-            document.getElementById('setup-screen').style.display = 'none';
-            ui();
-        }
-        function boot() { if(!myCourse) { showSetup(); } else { ui(); cam(); } initAI(); }
-
-        function ui() {
-            const list = db[myCourse] || [{n:"未登録", c:"000000"}];
-            const item = list[idx];
-            document.getElementById('top-id-display').innerText = `${myCourse} - ${String(idx + 1).padStart(2, '0')}`;
-            document.getElementById('code-label').innerText = item.c;
-            document.getElementById('name-label').innerText = item.n;
-        }
-
-        function stepShop(d) {
-            const list = db[myCourse];
-            idx = Math.max(0, Math.min(list.length - 1, idx + d));
-            ui();
-            document.getElementById('res-label').innerText = "READY";
-            document.getElementById('res-label').style.color = "#888";
-        }
-
-        async function cam() {
-            const v = document.getElementById('video');
-            try {
-                const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } });
-                v.srcObject = s;
-            } catch (e) { alert("Camera Error"); }
-        }
-
-        function openManual() {
-            initAudio();
-            document.getElementById('manual-box').style.display = 'flex';
-            const input = document.getElementById('manual-input');
-            input.value = ""; 
-            setTimeout(() => input.focus(), 100);
-        }
-        function closeManual() { document.getElementById('manual-box').style.display = 'none'; }
-        
-        document.getElementById('manual-input').addEventListener('input', function(e) {
-            if(this.value.length === 6) {
-                checkResult(this.value);
-                setTimeout(closeManual, 500);
-            }
-        });
-
-        async function handleScanButton() {
-            initAudio();
-            playSound('start');
-            runScanner();
-        }
-
-        async function runScanner() {
-            const btn = document.getElementById('scan-main');
-            const resL = document.getElementById('res-label');
-            btn.disabled = true;
-            resL.innerText = "SCANNING...";
-
-            const v = document.getElementById('video');
-            const canvas = document.createElement('canvas');
-            const sW = v.videoWidth * 0.6; const sH = v.videoHeight * 0.15;
-            canvas.width = 300; canvas.height = (sH * (300 / sW));
-            canvas.getContext('2d').drawImage(v, (v.videoWidth-sW)/2, (v.videoHeight-sH)/2, sW, sH, 0, 0, canvas.width, canvas.height);
-
-            try {
-                const res = await Promise.race([
-                    worker.recognize(canvas),
-                    new Promise((_, r) => setTimeout(() => r('Timeout'), 4000))
-                ]);
-                let raw = res.data.text.replace(/[^0-9]/g, '');
-                checkResult(raw);
-            } catch (e) { checkResult("??????"); }
-            setTimeout(() => { btn.disabled = false; }, 500);
-        }
-
-        function checkResult(input) {
-            const resL = document.getElementById('res-label');
-            const flash = document.getElementById('flash');
-            const target = db[myCourse][idx].c;
-            if (input.includes(target)) {
-                resL.innerText = `OK: ${target}`;
-                resL.style.color = "var(--cyan)";
-                flash.className = "match"; flash.style.opacity = 1;
-                playSound('ok');
-                if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
-            } else {
-                resL.innerText = `NG: ${input.slice(0,6) || "????"}`;
-                resL.style.color = "var(--red)";
-                flash.className = "mismatch"; flash.style.opacity = 1;
-                playSound('ng');
-                if(navigator.vibrate) navigator.vibrate(400);
-            }
-            setTimeout(() => { flash.style.opacity = 0; }, 1000);
-        }
-        window.onload = boot;
-    </script>
-</body>
-</html>
+            // --- 2便 (201-234) ---
+            db[201] = [{n:"宗像石丸三丁目",c:"241850"},{n:"福津花見が丘一丁目",c:"200331"},{n:"古賀舞の里",c:"165356"},{n:"古賀太郎丸",c:"076858"},{n:"舞松原",c:"165155"}];
+            db[202] = [{n:"福岡若宮五丁目",c:"145980"},{n:"南福岡駅前",c:"080230"},{n:"麦野四丁目",c:"092781"},{n:"博多上呉服町",c:"381290"}];
+            db[203] = [{n:"比恵町",c:"134829"},{n:"筑紫通東光寺",c:"091445"},{n:"博多那南六丁目",c:"145365"},{n:"博多美野島二丁目",c:"067033"},{n:"オリエンタルホテル福岡",c:"048320"}];
+            db[204] = [{n:"千早三丁目",c:"176319"},{n:"福岡名島三丁目",c:"214505"},{n:"福岡松崎三丁目",c:"357162"}];
+            db[205] = [{n:"下関椋野町三丁目",c:"195311"},{n:"下関一の宮町",c:"191247"},{n:"下関長府侍町",c:"368326"},{n:"下関競艇場前",c:"195475"},{n:"下関小月バイパス",c:"241985"},{n:"下関長府才川一丁目",c:"214385"}];
+            db[206] = [{n:"門司畑",c:"357305"},{n:"門司上二十町",c:"362967"},{n:"門司東門司",c:"076109"},{n:"門司東新町",c:"275139"},{n:"門司小森江",c:"208380"},{n:"門司西海岸二丁目",c:"220902"}];
+            db[207] = [{n:"下関吉見新町",c:"381545"},{n:"下関綾羅木本町",c:"275270"},{n:"下関垢田町一丁目",c:"363040"},{n:"下関宝町",c:"208427"},{n:"東門司一丁目",c:"200360"},{n:"門司港町",c:"090730"}];
+            db[208] = [{n:"小倉星和台一丁目",c:"191098"},{n:"小倉高尾二丁目",c:"267832"},{n:"小倉南丘二丁目",c:"078427"},{n:"小倉末広二丁目",c:"214273"},{n:"あるあるCity",c:"226448"}];
+            db[209] = [{n:"小倉石田町",c:"267967"},{n:"小倉蜷田若園",c:"230349"},{n:"小倉横代東町",c:"134887"},{n:"小倉田原新町二丁目",c:"362766"},{n:"小倉曽田原三丁目",c:"236004"}];
+            db[210] = [{n:"小倉熊本二丁目",c:"275263"},{n:"小倉高浜",c:"345029"},{n:"西小倉駅前",c:"362660"},{n:"小倉鋳物師町",c:"283340"},{n:"北九州トラックステーション",c:"226508"}];
+            db[211] = [{n:"八幡昭和一丁目",c:"283274"},{n:"北九州テクノパーク",c:"220894"},{n:"戸畑天神二丁目",c:"208433"},{n:"戸畑旭町",c:"208261"},{n:"戸畑千防一丁目",c:"191342"},{n:"戸畑千防二丁目",c:"381404"}];
+            db[212] = [{n:"小倉徳吉西",c:"134539"},{n:"小倉徳力",c:"267915"},{n:"田川香春町",c:"191448"},{n:"田川楠",c:"208440"},{n:"直方新入",c:"128993"}];
+            db[213] = [{n:"小倉平和通",c:"128734"},{n:"小倉浅野二丁目",c:"381551"},{n:"小倉堺町公園",c:"283446"},{n:"小倉江南町西",c:"248295"},{n:"小倉宇佐町",c:"191046"}];
+            db[214] = [{n:"春日大和町四丁目",c:"075819"},{n:"春日一丁目",c:"381380"},{n:"春日公園一丁目",c:"298525"},{n:"春日千歳町",c:"093250"},{n:"博多東比恵三丁目",c:"191000"}];
+            db[215] = [{n:"八幡中央二丁目",c:"093705"},{n:"八幡前田一丁目",c:"235980"},{n:"八幡黒崎三丁目",c:"154594"},{n:"八幡筒井町",c:"076262"},{n:"八幡樋口町",c:"241838"}];
+            db[216] = [{n:"太宰府天満宮前",c:"045050"},{n:"太宰府五条二丁目",c:"357570"},{n:"太宰府宰府一丁目",c:"372859"},{n:"都府楼南五丁目",c:"165965"},{n:"太宰府大佐野",c:"235884"}];
+            db[217] = [{n:"戸畑中原東三丁目",c:"077586"},{n:"戸畑夜宮二丁目",c:"275079"},{n:"小倉中井四丁目",c:"298732"},{n:"八幡日の出三丁目",c:"372865"},{n:"小倉三萩野",c:"093148"}];
+            db[218] = [{n:"ぎふね",c:"267690"},{n:"小倉清水二丁目",c:"077161"},{n:"小倉田町東",c:"220724"},{n:"小倉魚町二丁目",c:"154230"}];
+            db[219] = [{n:"片野新町",c:"145537"},{n:"小倉片野一丁目",c:"214280"},{n:"小倉大手町",c:"154559"},{n:"小倉米町二丁目",c:"172824"},{n:"小倉駅北口",c:"134947"}];
+            db[220] = [{n:"春日須玖南",c:"077280"},{n:"那珂川現人橋",c:"076055"},{n:"片縄二丁目",c:"165238"},{n:"今光二丁目",c:"165801"},{n:"春日下白水南五丁目",c:"368332"}];
+            db[221] = [{n:"福岡馬出五丁目",c:"214681"},{n:"博多大博町",c:"128958"},{n:"博多中呉服町",c:"298672"},{n:"博多祇園町",c:"134456"},{n:"大野城大城一丁目",c:"173048"},{n:"二又瀬新町",c:"176213"}];
+            db
