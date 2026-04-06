@@ -3,44 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>配送照合システム</title>
-    <meta name="mobile-web-app-capable" content="yes">
+    <title>配送照合システム v12</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { 
-            background: #000; color: white; font-family: sans-serif; 
-            min-height: 100vh; display: flex; flex-direction: column; 
-        }
-        
-        /* 設定画面 */
-        #setup-screen { 
-            position: fixed; inset: 0; background: #111; z-index: 2000; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; 
-        }
-
-        /* ヘッダー（20%） */
+        body { background: #000; color: white; font-family: sans-serif; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        #setup-screen { position: fixed; inset: 0; background: #111; z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .header { background: #222; padding: 10px; border-bottom: 2px solid #444; text-align: center; height: 120px; }
         .car-num { font-size: 14px; color: #0088ff; }
-        .shop-name { font-size: 20px; font-weight: bold; margin: 5px 0; color: #fff; }
+        .shop-name { font-size: 20px; font-weight: bold; margin: 5px 0; }
         .target-code { font-size: 14px; color: #00ff00; }
         .target-code b { font-size: 28px; letter-spacing: 2px; }
-
-        /* カメラエリア（50%に抑える） */
-        #v-container { position: relative; width: 100%; height: 50vh; background: #000; overflow: hidden; }
+        #v-container { position: relative; width: 100%; height: 45vh; background: #000; overflow: hidden; }
         #video { width: 100%; height: 100%; object-fit: cover; }
         .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); }
         .guide-box { width: 260px; height: 70px; border: 1px solid rgba(255,255,255,0.3); position: relative; }
         .guide-box::before, .guide-box::after { content: ""; position: absolute; width: 30px; height: 30px; border: 5px solid #00ff00; }
         .guide-box::before { top: -4px; left: -4px; border-right: 0; border-bottom: 0; }
         .guide-box::after { bottom: -4px; right: -4px; border-left: 0; border-top: 0; }
-
-        /* フッター（ボタンエリア） */
         .footer { background: #111; padding: 15px; flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         #result { font-size: 18px; font-weight: bold; color: #ffff00; margin-bottom: 10px; text-align: center; }
         .btn-row { display: flex; justify-content: space-between; gap: 10px; width: 100%; max-width: 400px; }
-        .nav { width: 60px; height: 60px; background: #333; color: white; border: none; border-radius: 8px; font-size: 24px; }
-        #scan { flex: 1; height: 70px; background: #0088ff; color: white; border: none; border-radius: 12px; font-size: 22px; font-weight: bold; box-shadow: 0 4px 0 #0055aa; }
+        .nav { width: 60px; height: 65px; background: #333; color: white; border: none; border-radius: 8px; font-size: 24px; }
+        #scan { flex: 1; height: 75px; background: #0088ff; color: white; border: none; border-radius: 12px; font-size: 22px; font-weight: bold; box-shadow: 0 4px 0 #0055aa; }
         #scan:active { transform: translateY(2px); box-shadow: 0 2px 0 #0055aa; }
     </style>
 </head>
@@ -48,7 +33,7 @@
 
     <div id="setup-screen" style="display:none;">
         <h2 style="margin-bottom:20px;">車両設定</h2>
-        <select id="car-select" style="width:100%; padding:15px; font-size:20px; margin-bottom:20px;"></select>
+        <select id="car-select" style="width:100%; padding:15px; font-size:20px; margin-bottom:20px; background:#333; color:white;"></select>
         <button onclick="saveCarSetting()" style="background:#0088ff; color:white; padding:20px; width:100%; border:none; font-size:20px; border-radius:10px;">配送開始</button>
     </div>
 
@@ -67,7 +52,7 @@
         <div id="result">準備中...</div>
         <div class="btn-row">
             <button class="nav" onclick="changeShop(-1)">◀</button>
-            <button id="scan" onclick="doScan()">スキャン開始</button>
+            <button id="scan" onclick="handleScan()">スキャン開始</button>
             <button class="nav" onclick="changeShop(1)">▶</button>
         </div>
     </div>
@@ -80,6 +65,21 @@
 
         let myCar = localStorage.getItem('myCarAndroid');
         let currentIndex = 0;
+        let audioCtx = null;
+
+        // 電子音（ピッ）を鳴らす関数
+        function playBeep() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1000, audioCtx.currentTime); // 1000Hz
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1); // 0.1秒間
+        }
 
         function initApp() {
             if (!myCar) {
@@ -134,18 +134,28 @@
             } catch (e) { document.getElementById('result').innerText = "カメラ許可エラー"; }
         }
 
+        async function handleScan() {
+            playBeep(); // ボタンを押した瞬間に音を鳴らす
+            doScan();
+        }
+
         async function doScan() {
             const btn = document.getElementById('scan');
             const resDisp = document.getElementById('result');
             btn.disabled = true;
-            resDisp.innerText = "解析中...";
+            resDisp.innerText = "爆速解析中...";
 
             const v = document.getElementById('video');
             const canvas = document.createElement('canvas');
-            const sW = v.videoWidth * 0.6; 
-            const sH = v.videoHeight * 0.15;
-            canvas.width = sW; canvas.height = sH;
-            canvas.getContext('2d').drawImage(v, (v.videoWidth-sW)/2, (v.videoHeight-sH)/2, sW, sH, 0, 0, sW, sH);
+            
+            // 【高速化の工夫】画像をAIが読みやすいサイズ（幅400px程度）に固定
+            const scale = 400 / (v.videoWidth * 0.6);
+            canvas.width = 400;
+            canvas.height = (v.videoHeight * 0.15) * scale;
+            
+            const ctx = canvas.getContext('2d');
+            // 切り抜きと同時に縮小
+            ctx.drawImage(v, (v.videoWidth - v.videoWidth*0.6)/2, (v.videoHeight - v.videoHeight*0.15)/2, v.videoWidth*0.6, v.videoHeight*0.15, 0, 0, canvas.width, canvas.height);
 
             try {
                 const res = await Tesseract.recognize(canvas, 'eng');
@@ -163,8 +173,8 @@
                     document.body.style.backgroundColor = "#330000";
                     if(navigator.vibrate) navigator.vibrate(300);
                 }
-            } catch (e) { resDisp.innerText = "スキャン失敗"; }
-            setTimeout(() => { btn.disabled = false; }, 2000);
+            } catch (e) { resDisp.innerText = "失敗"; }
+            setTimeout(() => { btn.disabled = false; }, 1500); // 復活も少し早く
         }
         window.onload = initApp;
     </script>
