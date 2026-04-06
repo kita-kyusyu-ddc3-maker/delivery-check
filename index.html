@@ -2,165 +2,180 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>誤配防止アプリ</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>配送照合システム</title>
     
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="誤配防止">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/9561/9561688.png">
-
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="icon" sizes="192x192" href="https://cdn-icons-png.flaticon.com/512/9561/9561688.png">
+    
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
             background: #000; color: white; font-family: sans-serif; 
-            height: 100vh; width: 100vw;
-            display: flex; flex-direction: column; 
+            height: 100vh; width: 100vw; display: flex; flex-direction: column; 
             overflow: hidden; touch-action: manipulation;
         }
 
-        /* 横向き制限（縦向きを促す） */
-        @media screen and (orientation: landscape) {
-            body::after {
-                content: "画面を縦向きにして使用してください";
-                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                background: #000; color: #fff; display: flex; align-items: center;
-                justify-content: center; z-index: 9999;
-            }
+        /* 号車設定画面 */
+        #setup-screen { 
+            position: fixed; inset: 0; background: #111; z-index: 2000; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; 
         }
-        
-        /* カメラエリア（上部） */
-        #v-container { 
-            position: relative; width: 100%; height: 62vh; 
-            background: #222; overflow: hidden;
-        }
-        #video { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* ガイド枠 */
-        .overlay { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            display: flex; align-items: center; justify-content: center; 
-            background: rgba(0,0,0,0.4); 
-        }
-        .guide-box { 
-            width: 280px; height: 90px; 
-            border: 2px solid rgba(255,255,255,0.2); 
-            position: relative;
-        }
-        .guide-box::before { content: ""; position: absolute; top: -5px; left: -5px; width: 35px; height: 35px; border: 6px solid #00ff00; border-right: 0; border-bottom: 0; }
-        .guide-box::after { content: ""; position: absolute; bottom: -5px; right: -5px; width: 35px; height: 35px; border: 6px solid #00ff00; border-left: 0; border-top: 0; }
+        .setup-select { width: 100%; padding: 15px; font-size: 20px; margin-bottom: 20px; background: #333; color: white; border: 1px solid #555; }
+        .setup-btn { background: #0088ff; color: white; border: none; padding: 20px; border-radius: 10px; font-size: 20px; width: 100%; font-weight: bold; }
 
-        /* 操作パネル（下部） */
-        .panel { 
-            flex: 1; background: #111; border-top: 4px solid #333; 
-            display: flex; flex-direction: column; align-items: center; justify-content: space-evenly;
-            /* iPhoneのホームバーと被らないための余白 */
-            padding-bottom: calc(15px + env(safe-area-inset-bottom));
-        }
-        .target-label { font-size: 14px; color: #aaa; text-align: center; }
-        .target-label b { color: #00ff00; font-size: 30px; letter-spacing: 3px; display: block; margin-top: 5px; }
-        #result { font-size: 18px; font-weight: bold; color: #ffff00; text-align: center; min-height: 1.5em; width: 90%; }
-        
-        /* ボタン */
-        #btn { 
-            width: 85%; height: 75px; 
-            background: #0088ff; color: #fff; 
-            border: none; border-radius: 20px; 
-            font-size: 26px; font-weight: bold;
-            box-shadow: 0 6px 0 #0055aa;
-            transition: all 0.1s;
-        }
-        #btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #0055aa; }
-        #btn:disabled { background: #444; color: #888; box-shadow: none; }
+        /* ヘッダー：配送情報 */
+        .header { background: #222; padding: 10px; border-bottom: 2px solid #444; text-align: center; }
+        .car-num { font-size: 14px; color: #0088ff; font-weight: bold; }
+        .shop-name { font-size: 20px; font-weight: bold; margin: 3px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .target-code { font-size: 14px; color: #00ff00; }
+        .target-code b { font-size: 26px; letter-spacing: 2px; }
+
+        /* カメラエリア */
+        #v-container { position: relative; width: 100%; flex: 1; background: #000; }
+        #video { width: 100%; height: 100%; object-fit: cover; }
+        .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); }
+        .guide-box { width: 280px; height: 80px; border: 1px solid rgba(255,255,255,0.2); position: relative; }
+        .guide-box::before, .guide-box::after { content: ""; position: absolute; width: 30px; height: 30px; border: 5px solid #00ff00; }
+        .guide-box::before { top: -4px; left: -4px; border-right: 0; border-bottom: 0; }
+        .guide-box::after { bottom: -4px; right: -4px; border-left: 0; border-top: 0; }
+
+        /* フッター：操作エリア */
+        .footer { background: #111; padding: 15px; text-align: center; }
+        #result { font-size: 18px; font-weight: bold; color: #ffff00; margin-bottom: 12px; height: 1.2em; }
+        .btn-row { display: flex; justify-content: space-between; gap: 10px; width: 100%; }
+        .nav { width: 55px; height: 65px; background: #333; color: white; border: none; border-radius: 8px; font-size: 20px; }
+        #scan { flex: 1; height: 65px; background: #0088ff; color: white; border: none; border-radius: 12px; font-size: 22px; font-weight: bold; box-shadow: 0 4px 0 #0055aa; }
+        #scan:active { transform: translateY(2px); box-shadow: 0 2px 0 #0055aa; }
     </style>
 </head>
 <body>
+
+    <div id="setup-screen" style="display:none;">
+        <h2 style="margin-bottom:20px;">車両設定（Android）</h2>
+        <select id="car-select" class="setup-select"></select>
+        <button class="setup-btn" onclick="saveCarSetting()">配送開始</button>
+    </div>
+
+    <div class="header">
+        <div id="display-car" class="car-num">---</div>
+        <div id="display-shop" class="shop-name">店舗名</div>
+        <div class="target-code">照合: <b id="display-code">------</b></div>
+    </div>
 
     <div id="v-container">
         <video id="video" autoplay playsinline muted></video>
         <div class="overlay"><div class="guide-box"></div></div>
     </div>
     
-    <div class="panel">
-        <div class="target-label">ターゲット店舗コード<b>123456</b></div>
-        <div id="result">初期化中...</div>
-        <button id="btn" disabled>スキャン開始</button>
+    <div class="footer">
+        <div id="result">カメラ起動中...</div>
+        <div class="btn-row">
+            <button class="nav" onclick="changeShop(-1)">◀</button>
+            <button id="scan" onclick="doScan()">スキャン開始</button>
+            <button class="nav" onclick="changeShop(1)">▶</button>
+        </div>
     </div>
 
     <script>
-        const video = document.getElementById('video');
-        const resultDisplay = document.getElementById('result');
-        const btn = document.getElementById('btn');
-        const targetCode = "123456"; 
+        // 配送データサンプル
+        const deliveryData = {
+            "1号車": [{ name: "店舗1-A", code: "100001" }, { name: "店舗1-B", code: "100002" }],
+            "2号車": [{ name: "店舗2-A", code: "200001" }, { name: "店舗2-B", code: "200002" }]
+        };
 
-        async function init() {
+        let myCar = localStorage.getItem('myCarAndroid');
+        let currentIndex = 0;
+
+        function initApp() {
+            if (!myCar) {
+                const select = document.getElementById('car-select');
+                for(let i=1; i<=34; i++) {
+                    let opt = document.createElement('option');
+                    opt.value = i + "号車"; opt.text = i + "号車";
+                    select.add(opt);
+                }
+                document.getElementById('setup-screen').style.display = "flex";
+            } else { startService(); }
+        }
+
+        function saveCarSetting() {
+            myCar = document.getElementById('car-select').value;
+            localStorage.setItem('myCarAndroid', myCar);
+            document.getElementById('setup-screen').style.display = "none";
+            startService();
+        }
+
+        function startService() {
+            document.getElementById('display-car').innerText = "🚚 Android端末：" + myCar;
+            updateDisplay();
+            initCamera();
+        }
+
+        function updateDisplay() {
+            const list = deliveryData[myCar] || [{name:"未登録", code:"000000"}];
+            const shop = list[currentIndex];
+            document.getElementById('display-shop').innerText = (currentIndex + 1) + ". " + shop.name;
+            document.getElementById('display-code').innerText = shop.code;
+            document.body.style.backgroundColor = "black";
+            document.getElementById('result').innerText = "スキャン待機中";
+            document.getElementById('result').style.color = "#ffff00";
+        }
+
+        function changeShop(dir) {
+            const list = deliveryData[myCar];
+            if(!list) return;
+            currentIndex = Math.max(0, Math.min(list.length - 1, currentIndex + dir));
+            updateDisplay();
+        }
+
+        async function initCamera() {
+            const video = document.getElementById('video');
             try {
                 const s = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment", width: { ideal: 1280 } } 
+                    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } 
                 });
                 video.srcObject = s;
-                video.onloadeddata = () => {
-                    btn.disabled = false;
-                    resultDisplay.innerText = "枠に数字を合わせてスキャン！";
-                };
-            } catch (e) {
-                resultDisplay.innerText = "カメラの許可が必要です";
-            }
+                document.getElementById('result').innerText = "準備完了";
+            } catch (e) { document.getElementById('result').innerText = "カメラ許可エラー"; }
         }
 
         async function doScan() {
+            const btn = document.getElementById('scan');
+            const resDisp = document.getElementById('result');
             btn.disabled = true;
-            resultDisplay.innerText = "読み取り中...";
-            document.body.style.backgroundColor = "black";
+            resDisp.innerText = "解析中...";
 
+            const v = document.getElementById('video');
             const canvas = document.createElement('canvas');
-            const vW = video.videoWidth;
-            const vH = video.videoHeight;
-            
-            // 枠の範囲だけを切り取る（中央の60%幅、20%高さ）
-            const sW = vW * 0.6; 
-            const sH = vH * 0.2; 
-            const sX = (vW - sW) / 2;
-            const sY = (vH - sH) / 2;
-
-            canvas.width = sW;
-            canvas.height = sH;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, sX, sY, sW, sH, 0, 0, sW, sH);
+            // Androidは解像度が高い場合があるため実サイズから計算
+            const sW = v.videoWidth * 0.6; 
+            const sH = v.videoHeight * 0.15;
+            canvas.width = sW; canvas.height = sH;
+            canvas.getContext('2d').drawImage(v, (v.videoWidth-sW)/2, (v.videoHeight-sH)/2, sW, sH, 0, 0, sW, sH);
 
             try {
                 const res = await Tesseract.recognize(canvas, 'eng');
-                let raw = res.data.text;
-                // 1の認識補正 + 数字以外を排除
-                let clean = raw.replace(/[Il|i]/g, '1').replace(/[^0-9]/g, '');
+                let txt = res.data.text.replace(/[Il|i]/g, '1').replace(/[^0-9]/g, '');
+                const target = deliveryData[myCar][currentIndex].code;
 
-                if (clean.includes(targetCode)) {
-                    resultDisplay.innerText = "【一致】荷下ろしOK！";
-                    resultDisplay.style.color = "#00ffff";
+                if (txt.includes(target)) {
+                    resDisp.innerText = "【一致】荷下ろしOK！";
+                    resDisp.style.color = "#00ffff";
                     document.body.style.backgroundColor = "blue";
-                    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                    if(navigator.vibrate) navigator.vibrate([100, 50, 100]); // Androidらしいリズム
                 } else {
-                    resultDisplay.innerText = "不一致: " + (clean || "読取不可");
-                    resultDisplay.style.color = "#ff4444";
+                    resDisp.innerText = "不一致: " + (txt || "読取不可");
+                    resDisp.style.color = "#ff4444";
                     document.body.style.backgroundColor = "#330000";
-                    if (navigator.vibrate) navigator.vibrate(400);
+                    if(navigator.vibrate) navigator.vibrate(300);
                 }
-            } catch (e) {
-                resultDisplay.innerText = "エラー：もう一度試してください";
-            } finally {
-                setTimeout(() => {
-                    btn.disabled = false;
-                    if (document.body.style.backgroundColor !== "blue") {
-                        resultDisplay.style.color = "#ffff00";
-                        resultDisplay.innerText = "次のスキャン待機中";
-                    }
-                }, 2000);
-            }
+            } catch (e) { resDisp.innerText = "スキャン失敗"; }
+            setTimeout(() => { btn.disabled = false; }, 2000);
         }
 
-        btn.onclick = doScan;
-        window.onload = init;
+        window.onload = initApp;
     </script>
 </body>
 </html>
