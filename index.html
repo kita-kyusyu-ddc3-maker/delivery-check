@@ -8,6 +8,8 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#6c5ce7">
+    <link rel="manifest" href="manifest.json">
     <link rel="icon" sizes="192x192" href="https://cdn-icons-png.flaticon.com/512/9561/9561688.png">
 
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
@@ -22,30 +24,54 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: var(--bg); color: #000; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body { 
+            background: var(--bg); color: #000; font-family: sans-serif; 
+            height: 100vh; width: 100vw; display: flex; flex-direction: column; 
+            overflow: hidden; position: relative;
+        }
 
-        .top-id-bar { height: 70px; min-height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 42px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 100; }
-        .header { flex: 1; max-height: 30vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; text-align: center; }
+        /* 1段目：最上部固定バー */
+        .top-id-bar { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 75px; 
+            background: var(--purple-accent); color: white; 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: 900; font-size: 44px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4); 
+            z-index: 5000;
+        }
+
+        /* 2〜4段目：ヘッダーエリア */
+        .header { 
+            margin-top: 75px; 
+            flex: 1; display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; 
+            padding: 10px; text-align: center; 
+        }
         .line-name { font-size: 38px; font-weight: 900; color: #000; line-height: 1.1; width: 95%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-        .line-code { font-size: 52px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; margin: 5px 0; }
+        .line-code { font-size: 55px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; margin: 5px 0; }
         .line-result { font-size: 26px; font-weight: 900; height: 1.2em; color: #888; }
+
+        /* カメラエリア */
         #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; display: flex; align-items: center; justify-content: center; }
-        .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
+        .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; }
         #video { width: 100%; height: 100%; object-fit: cover; }
         .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 80px; border: 2px solid var(--purple-accent); border-radius: 15px; box-shadow: 0 0 15px rgba(108, 92, 231, 0.3); z-index: 10; }
         
-        #manual-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 4000; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        /* 手入力用モーダル */
+        #manual-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 6000; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         #manual-input { width: 90%; padding: 15px; font-size: 45px; text-align: center; border-radius: 15px; border: 4px solid var(--purple-accent); background: white; color: black; letter-spacing: 10px; margin-bottom: 30px; }
         
-        .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
+        /* フッターエリア */
+        .footer { height: 32vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 10px; }
         .btn-side { width: 75px; height: 75px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 40px; display: flex; align-items: center; justify-content: center; }
-        #scan-main { width: 155px; height: 155px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 34px; font-weight: 900; display: flex; flex-direction: column; align-items: center; justify-content: center; outline: none; }
+        #scan-main { width: 150px; height: 150px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 34px; font-weight: 900; display: flex; flex-direction: column; align-items: center; justify-content: center; outline: none; }
         #scan-main:active { box-shadow: var(--inner); transform: scale(0.95); }
         
         #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: 0.3s; z-index: 1000; }
         .match { background: radial-gradient(circle, rgba(0,138,138,0.4) 0%, transparent 70%); }
         .mismatch { background: radial-gradient(circle, rgba(214,48,49,0.4) 0%, transparent 70%); }
-        #setup-screen { position: fixed; inset: 0; background: var(--bg); z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        
+        #setup-screen { position: fixed; inset: 0; background: var(--bg); z-index: 7000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .setup-card { background: var(--bg); padding: 30px; border-radius: 30px; box-shadow: var(--shadow); width: 90%; text-align: center; }
         select { width: 100%; padding: 20px; font-size: 24px; font-weight: bold; border-radius: 15px; margin: 15px 0; border: none; background: var(--bg); box-shadow: var(--inner); color: var(--purple-accent); }
     </style>
@@ -54,7 +80,7 @@
 
     <div id="setup-screen" style="display:none;">
         <div class="setup-card">
-            <h2 style="margin-bottom:20px;">Course Setup</h2>
+            <h2 style="margin-bottom:20px;">コース設定</h2>
             <select id="shift-in" onchange="loadCourseMenu()">
                 <option value="1">1便 (101-134)</option>
                 <option value="2">2便 (201-234)</option>
@@ -66,12 +92,13 @@
     </div>
 
     <div id="manual-box">
-        <h2 style="color:white; margin-bottom:20px;">手入力判定</h2>
+        <h2 style="color:white; margin-bottom:20px;">数字を直接入力</h2>
         <input type="tel" id="manual-input" maxlength="6" placeholder="------" autocomplete="off">
         <button class="btn-side" style="width:160px; border-radius:15px; font-size:20px;" onclick="closeManual()">戻る</button>
     </div>
 
     <div id="flash"></div>
+
     <div id="top-id-display" class="top-id-bar">--- - --</div>
 
     <div class="header">
@@ -103,7 +130,7 @@
         }
         genData();
 
-        let myCourse = localStorage.getItem('violet_v24') || null;
+        let myCourse = localStorage.getItem('violet_final') || null;
         let idx = 0;
         let audioCtx = null;
 
@@ -112,12 +139,10 @@
             if (audioCtx.state === 'suspended') audioCtx.resume();
         }
 
-        // 音の生成ロジック
         function playSound(type) {
             initAudio();
             const now = audioCtx.currentTime;
             if (type === 'start') {
-                // ピピッ
                 [1200, 1600].forEach((f, i) => {
                     const o = audioCtx.createOscillator();
                     const g = audioCtx.createGain();
@@ -128,7 +153,6 @@
                     o.start(now + i * 0.05); o.stop(now + i * 0.05 + 0.05);
                 });
             } else if (type === 'ok') {
-                // ピンポーン
                 [698, 880].forEach((f, i) => {
                     const o = audioCtx.createOscillator();
                     const g = audioCtx.createGain();
@@ -139,7 +163,6 @@
                     o.start(now + i * 0.15); o.stop(now + i * 0.15 + 0.5);
                 });
             } else if (type === 'ng') {
-                // ブッブー
                 const o1 = audioCtx.createOscillator();
                 const o2 = audioCtx.createOscillator();
                 const g = audioCtx.createGain();
@@ -169,9 +192,9 @@
         }
 
         function startApp() {
-            initAudio(); // 最初のユーザー操作でオーディオを解禁
+            initAudio();
             myCourse = document.getElementById('course-in').value;
-            localStorage.setItem('violet_v24', myCourse);
+            localStorage.setItem('violet_final', myCourse);
             document.getElementById('setup-screen').style.display = 'none';
             boot();
         }
@@ -222,7 +245,7 @@
         });
 
         async function handleScanButton() {
-            playSound('start'); // 開始音
+            playSound('start');
             runScanner();
         }
 
