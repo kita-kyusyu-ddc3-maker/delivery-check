@@ -2,184 +2,187 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Logistics Scanner VIOLET</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Logistics Scanner VIOLET v15</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
-            --bg-color: #f0f0f7;
-            --main-purple: #9d8dbd;
-            --accent-purple: #6c5ce7;
-            --success-cyan: #00cec9;
-            --error-red: #ff7675;
-            --shadow: 6px 6px 12px #bebebe, -6px -6px 12px #ffffff;
-            --inner-shadow: inset 4px 4px 8px #bebebe, inset -4px -4px 8px #ffffff;
+            --bg: #f0f0f7;
+            --purple-main: #9d8dbd;
+            --purple-accent: #6c5ce7;
+            --cyan: #00cec9;
+            --red: #ff7675;
+            --shadow: 8px 8px 16px #d1d1d6, -8px -8px 16px #ffffff;
+            --inner: inset 4px 4px 8px #d1d1d6, inset -4px -4px 8px #ffffff;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: var(--bg-color); color: #444; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body { background: var(--bg); color: #444; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-        /* Setup Overlay */
-        #setup-screen { position: fixed; inset: 0; background: var(--bg-color); z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; }
-        .setup-card { background: var(--bg-color); padding: 30px; border-radius: 20px; box-shadow: var(--shadow); width: 100%; text-align: center; }
-        select { width: 100%; padding: 15px; margin: 15px 0; border: none; border-radius: 10px; background: var(--bg-color); box-shadow: var(--inner-shadow); font-size: 16px; color: var(--accent-purple); outline: none; }
+        /* Setup Screen */
+        #setup-screen { position: fixed; inset: 0; background: var(--bg); z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; }
+        .card { background: var(--bg); padding: 30px; border-radius: 30px; box-shadow: var(--shadow); width: 100%; max-width: 400px; text-align: center; }
+        select { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 15px; background: var(--bg); box-shadow: var(--inner); font-size: 16px; color: var(--purple-accent); outline: none; }
         
-        /* Header Stats */
-        .header { padding: 20px 15px; text-align: center; background: var(--bg-color); }
-        .route-id { font-size: 12px; font-weight: bold; color: var(--main-purple); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px; }
-        .shop-name { font-size: 22px; font-weight: 600; color: #2d3436; margin-bottom: 8px; }
-        .code-display { font-size: 14px; color: #636e72; }
-        .code-display b { font-size: 28px; color: var(--accent-purple); font-family: 'Courier New', Courier, monospace; }
+        /* Header */
+        .header { padding: 20px 20px; text-align: center; }
+        .info-tag { font-size: 10px; font-weight: bold; color: var(--purple-main); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; }
+        .shop-title { font-size: 22px; font-weight: 600; color: #2d3436; margin-bottom: 5px; height: 1.2em; overflow: hidden; }
+        .target-box { font-size: 13px; color: #636e72; }
+        .target-box b { font-size: 36px; color: var(--purple-accent); font-family: 'Monaco', monospace; letter-spacing: 4px; }
 
-        /* Scanner View */
-        #v-container { position: relative; width: 100%; height: 40vh; display: flex; justify-content: center; align-items: center; padding: 10px; }
-        .video-wrapper { position: relative; width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner-shadow); background: #000; }
-        #video { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
-        .scan-guide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-        .guide-box { width: 260px; height: 70px; border: 2px solid rgba(157, 141, 189, 0.4); border-radius: 10px; position: relative; }
-        .guide-box::before { content: ''; position: absolute; inset: -5px; border: 4px solid var(--accent-purple); border-radius: 12px; clip-path: polygon(0 0, 30% 0, 30% 10%, 70% 10%, 70% 0, 100% 0, 100% 30%, 90% 30%, 90% 70%, 100% 70%, 100% 100%, 70% 100%, 70% 90%, 30% 90%, 30% 100%, 0 100%, 0 70%, 10% 70%, 10% 30%, 0 30%); }
+        /* Camera Section */
+        #cam-area { position: relative; width: 100%; flex: 1; padding: 0 15px; display: flex; align-items: center; justify-content: center; }
+        .cam-frame { width: 100%; height: 100%; border-radius: 30px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
+        #video { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; }
+        .guide-container { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+        .guide-rect { width: 280px; height: 80px; border: 2px solid rgba(108, 92, 231, 0.2); border-radius: 15px; position: relative; }
+        .guide-rect::after { content: ''; position: absolute; inset: -4px; border: 4px solid var(--purple-accent); border-radius: 18px; opacity: 0.6; box-shadow: 0 0 15px var(--purple-accent); }
 
         /* Footer Controls */
-        .footer { flex: 1; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: space-around; }
-        #status-text { font-size: 14px; font-weight: 500; color: var(--main-purple); height: 20px; }
-        .control-row { width: 100%; display: flex; justify-content: space-between; align-items: center; max-width: 450px; }
+        .footer { padding: 25px 20px; display: flex; flex-direction: column; align-items: center; }
+        #msg { font-size: 13px; font-weight: 600; color: var(--purple-main); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
+        .ctrl-row { width: 100%; display: flex; justify-content: space-between; align-items: center; max-width: 400px; }
         
-        .nav-btn { width: 60px; height: 60px; border-radius: 50%; border: none; background: var(--bg-color); box-shadow: var(--shadow); color: var(--accent-purple); font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
-        .nav-btn:active { box-shadow: var(--inner-shadow); }
+        .btn-circle { width: 60px; height: 60px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 20px; cursor: pointer; }
+        .btn-circle:active { box-shadow: var(--inner); }
 
-        #scan-btn { 
-            width: 160px; height: 160px; border-radius: 50%; border: 8px solid var(--bg-color);
-            background: var(--bg-color); box-shadow: var(--shadow);
-            color: var(--accent-purple); font-size: 18px; font-weight: bold; text-transform: uppercase;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.2s;
+        #scan-main { 
+            width: 130px; height: 130px; border-radius: 50%; border: none;
+            background: var(--bg); box-shadow: var(--shadow);
+            color: var(--purple-accent); font-size: 20px; font-weight: 800; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        #scan-btn:active { box-shadow: var(--inner-shadow); transform: scale(0.96); }
-        #scan-btn span { font-size: 10px; margin-top: 5px; color: var(--main-purple); }
-        #scan-btn:disabled { color: #ccc; }
+        #scan-main:active { box-shadow: var(--inner); transform: scale(0.96); }
+        #scan-main small { font-size: 9px; margin-top: 4px; color: var(--purple-main); letter-spacing: 1px; }
 
-        /* Result Overlay Animations */
-        .result-flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: 0.3s; z-index: 1000; }
-        .success-bg { background: radial-gradient(circle, rgba(0,206,201,0.2) 0%, rgba(240,240,247,0) 70%); }
-        .error-bg { background: radial-gradient(circle, rgba(255,118,117,0.2) 0%, rgba(240,240,247,0) 70%); }
+        /* Animation Flash */
+        #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: 0.4s; z-index: 1000; }
+        .match { background: radial-gradient(circle, rgba(0,206,201,0.3) 0%, transparent 75%); }
+        .mismatch { background: radial-gradient(circle, rgba(255,118,117,0.3) 0%, transparent 75%); }
     </style>
 </head>
 <body>
 
     <div id="setup-screen" style="display:none;">
-        <div class="setup-card">
-            <h2 style="color:var(--accent-purple); margin-bottom:10px;">Select Route</h2>
-            <select id="shift-select" onchange="updateCourseList()">
+        <div class="card">
+            <h2 style="color:var(--purple-accent); margin-bottom:15px;">Route Selection</h2>
+            <select id="shift-in" onchange="loadCourseMenu()">
                 <option value="1">1st Shift (101-134)</option>
                 <option value="2">2nd Shift (201-234)</option>
                 <option value="3">3rd Shift (301)</option>
             </select>
-            <select id="course-select"></select>
-            <button class="nav-btn" style="width:100%; border-radius:10px; margin-top:20px; font-weight:bold;" onclick="confirmSetup()">CONFIRM</button>
+            <select id="course-in"></select>
+            <button class="btn-circle" style="width:100%; border-radius:15px; margin-top:20px; font-weight:bold; height:50px;" onclick="startApp()">CONFIRM ROUTE</button>
         </div>
     </div>
 
-    <div id="flash" class="result-flash"></div>
+    <div id="flash"></div>
 
     <div class="header">
-        <div id="route-label" class="route-id">Route Loading...</div>
-        <div id="shop-label" class="shop-name">Store Name</div>
-        <div class="code-display">TARGET CODE: <b id="code-label">------</b></div>
+        <div id="tag-label" class="info-tag">SYSTEM BOOTING</div>
+        <div id="shop-name" class="shop-title">...</div>
+        <div class="target-box">TARGET CODE: <b id="code-target">------</b></div>
     </div>
 
-    <div id="v-container">
-        <div class="video-wrapper">
+    <div id="cam-area">
+        <div class="cam-frame">
             <video id="video" autoplay playsinline muted></video>
-            <div class="scan-guide"><div class="guide-box"></div></div>
+            <div class="guide-container"><div class="guide-rect"></div></div>
         </div>
     </div>
     
     <div class="footer">
-        <div id="status-text">SYSTEM READY</div>
-        <div class="control-row">
-            <button class="nav-btn" onclick="changeStore(-1)">◀</button>
-            <button id="scan-btn" onclick="handleScan()">SCAN<span>START</span></button>
-            <button class="nav-btn" onclick="changeStore(1)">▶</button>
+        <div id="msg">STANDBY</div>
+        <div class="ctrl-row">
+            <button class="btn-circle" onclick="stepShop(-1)">◀</button>
+            <button id="scan-main" onclick="runScanner()">SCAN<small>6-DIGIT</small></button>
+            <button class="btn-circle" onclick="stepShop(1)">▶</button>
         </div>
     </div>
 
     <script>
-        // Data Structure
-        const masterData = {}; 
-        // 開発用にサンプル生成 (本番はここに実際のデータを注入)
-        function generateDummyData() {
-            for(let c=101; c<=134; c++) masterData[c] = [{name:`Shop ${c}-A`, code:`1${c}001`}, {name:`Shop ${c}-B`, code:`1${c}002`}];
-            for(let c=201; c<=234; c++) masterData[c] = [{name:`Shop ${c}-A`, code:`2${c}001`}, {name:`Shop ${c}-B`, code:`2${c}002`}];
-            masterData[301] = [{name:"Night Shop A", code:"301001"}, {name:"Night Shop B", code:"301002"}];
+        // Data Repository
+        const db = {}; 
+        function genData() {
+            // 1便: 101-134
+            for(let c=101; c<=134; c++) db[c] = [{n:`Shop ${c}-A`, c:`1${c}001`}, {n:`Shop ${c}-B`, c:`1${c}002`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
+            // 2便: 201-234
+            for(let c=201; c<=234; c++) db[c] = [{n:`Shop ${c}-X`, c:`2${c}999`}, {n:`Shop ${c}-Y`, c:`2${c}888`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
+            // 3便: 301
+            db[301] = [{n:"Night Delivery A", c:"301001"}, {n:"Night Delivery B", c:"301002"}];
         }
-        generateDummyData();
+        genData();
 
-        let currentCourse = localStorage.getItem('violet_course') || null;
-        let storeIdx = 0;
-        let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let myCourse = localStorage.getItem('violet_c_v15') || null;
+        let idx = 0;
+        let audio = new (window.AudioContext || window.webkitAudioContext)();
 
-        // Futuristic Beep Sound
-        function playFutureBeep(type) {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain); gain.connect(audioCtx.destination);
+        // New Future Beep (Double-tap high frequency)
+        function playFutureBeep(isMatch) {
+            const now = audio.currentTime;
             
-            const now = audioCtx.currentTime;
-            if(type === 'scan') {
-                osc.frequency.setValueAtTime(880, now);
-                osc.frequency.exponentialRampToValueAtTime(1760, now + 0.1);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.1);
-            } else if(type === 'success') {
-                osc.frequency.setValueAtTime(1320, now);
-                gain.gain.setValueAtTime(0.1, now);
-                osc.stop(now + 0.2);
+            function createTone(freq, start, duration) {
+                const osc = audio.createOscillator();
+                const g = audio.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, start);
+                osc.connect(g); g.connect(audio.destination);
+                g.gain.setValueAtTime(0, start);
+                g.gain.linearRampToValueAtTime(0.1, start + 0.01);
+                g.gain.linearRampToValueAtTime(0, start + duration);
+                osc.start(start); osc.stop(now + start + duration);
             }
-            osc.start(); osc.stop(now + 0.1);
+
+            if(isMatch === 'scan') {
+                createTone(1200, now, 0.05); // Short high beep 1
+                createTone(1500, now + 0.08, 0.05); // Short high beep 2
+            }
         }
 
-        function updateCourseList() {
-            const shift = document.getElementById('shift-select').value;
-            const select = document.getElementById('course-select');
-            select.innerHTML = '';
-            let start = shift == 1 ? 101 : shift == 2 ? 201 : 301;
-            let end = shift == 1 ? 134 : shift == 2 ? 234 : 301;
+        function loadCourseMenu() {
+            const s = document.getElementById('shift-in').value;
+            const menu = document.getElementById('course-in');
+            menu.innerHTML = '';
+            let start = s==1?101:s==2?201:301;
+            let end = s==1?134:s==2?234:301;
             for(let i=start; i<=end; i++) {
-                let opt = document.createElement('option');
-                opt.value = i; opt.text = "Course " + i;
-                select.add(opt);
+                let o = document.createElement('option');
+                o.value = i; o.text = "Course " + i;
+                menu.add(o);
             }
         }
 
-        function confirmSetup() {
-            currentCourse = document.getElementById('course-select').value;
-            localStorage.setItem('violet_course', currentCourse);
+        function startApp() {
+            myCourse = document.getElementById('course-in').value;
+            localStorage.setItem('violet_c_v15', myCourse);
             document.getElementById('setup-screen').style.display = 'none';
-            bootSystem();
+            boot();
         }
 
-        function bootSystem() {
-            if(!currentCourse) { updateCourseList(); document.getElementById('setup-screen').style.display = 'flex'; return; }
-            document.getElementById('route-label').innerText = `Course ${currentCourse} / Delivery active`;
-            refreshUI();
-            initCamera();
+        function boot() {
+            if(!myCourse) { loadCourseMenu(); document.getElementById('setup-screen').style.display='flex'; return; }
+            document.getElementById('tag-label').innerText = `COURSE ${myCourse} ACTIVE`;
+            ui();
+            cam();
         }
 
-        function refreshUI() {
-            const list = masterData[currentCourse];
-            const shop = list[storeIdx];
-            document.getElementById('shop-label').innerText = shop.name;
-            document.getElementById('code-label').innerText = shop.code;
-            document.getElementById('status-text').innerText = `STORE ${storeIdx + 1} OF ${list.length}`;
-            document.getElementById('status-text').style.color = 'var(--main-purple)';
+        function ui() {
+            const list = db[myCourse];
+            const item = list[idx];
+            document.getElementById('shop-name').innerText = item.n;
+            document.getElementById('code-target').innerText = item.c;
+            document.getElementById('msg').innerText = `STEP ${idx+1} OF ${list.length}`;
+            document.getElementById('msg').style.color = 'var(--purple-main)';
         }
 
-        function changeStore(dir) {
-            const list = masterData[currentCourse];
-            storeIdx = Math.max(0, Math.min(list.length - 1, storeIdx + dir));
-            refreshUI();
+        function stepShop(d) {
+            const list = db[myCourse];
+            idx = Math.max(0, Math.min(list.length - 1, idx + d));
+            ui();
         }
 
-        async function initCamera() {
+        async function cam() {
             const v = document.getElementById('video');
             try {
                 const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } });
@@ -187,47 +190,48 @@
             } catch (e) { alert("Camera Access Required"); }
         }
 
-        async function handleScan() {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+        async function runScanner() {
+            if(audio.state === 'suspended') audio.resume();
             playFutureBeep('scan');
-            const btn = document.getElementById('scan-btn');
-            const status = document.getElementById('status-text');
+            const btn = document.getElementById('scan-main');
+            const msg = document.getElementById('msg');
             const flash = document.getElementById('flash');
             
             btn.disabled = true;
-            status.innerText = "ANALYZING...";
+            msg.innerText = "VERIFYING...";
 
             const v = document.getElementById('video');
             const canvas = document.createElement('canvas');
+            // 6桁用に横幅を最適化
             const sW = v.videoWidth * 0.6; const sH = v.videoHeight * 0.15;
             canvas.width = 400; canvas.height = (sH * (400 / sW));
             canvas.getContext('2d').drawImage(v, (v.videoWidth-sW)/2, (v.videoHeight-sH)/2, sW, sH, 0, 0, canvas.width, canvas.height);
 
             try {
                 const res = await Tesseract.recognize(canvas, 'eng');
-                let txt = res.data.text.replace(/[Il|i]/g, '1').replace(/[^0-9]/g, '');
-                const target = masterData[currentCourse][storeIdx].code;
+                let raw = res.data.text.replace(/[I|i|l|]/g, '1').replace(/[^0-9]/g, '');
+                const target = db[myCourse][idx].c;
 
-                if (txt.includes(target)) {
-                    status.innerText = "MATCH CONFIRMED";
-                    status.style.color = "var(--success-cyan)";
-                    flash.className = "result-flash success-bg"; flash.style.opacity = 1;
+                if (raw.includes(target)) {
+                    msg.innerText = "MATCH CONFIRMED";
+                    msg.style.color = "var(--cyan)";
+                    flash.className = "match"; flash.style.opacity = 1;
                     if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
                 } else {
-                    status.innerText = `MISMATCH: ${txt || 'NULL'}`;
-                    status.style.color = "var(--error-red)";
-                    flash.className = "result-flash error-bg"; flash.style.opacity = 1;
+                    msg.innerText = "MISMATCH / RETRY";
+                    msg.style.color = "var(--red)";
+                    flash.className = "mismatch"; flash.style.opacity = 1;
                     if(navigator.vibrate) navigator.vibrate(400);
                 }
-            } catch (e) { status.innerText = "SENSOR ERROR"; }
+            } catch (e) { msg.innerText = "SCAN ERROR"; }
 
             setTimeout(() => { 
                 btn.disabled = false; 
                 flash.style.opacity = 0;
-            }, 2000);
+            }, 1800);
         }
 
-        window.onload = bootSystem;
+        window.onload = boot;
     </script>
 </body>
 </html>
