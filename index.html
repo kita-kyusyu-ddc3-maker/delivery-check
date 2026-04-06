@@ -3,114 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v17</title>
+    <title>Scanner VIOLET v18</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
             --bg: #f0f0f7;
             --purple-main: #9d8dbd;
             --purple-accent: #6c5ce7;
-            --cyan: #00cec9;
-            --red: #ff7675;
-            --shadow: 6px 6px 12px #d1d1d6, -6px -6px 12px #ffffff;
+            --cyan: #008a8a; /* 視認性のため少し濃く */
+            --red: #d63031;  /* 視認性のため少し濃く */
+            --shadow: 8px 8px 16px #d1d1d6, -8px -8px 16px #ffffff;
             --inner: inset 4px 4px 8px #d1d1d6, inset -4px -4px 8px #ffffff;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: var(--bg); color: #444; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body { background: var(--bg); color: #000; font-family: 'Hiragino Kaku Gothic ProN', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-        /* Setup Screen */
-        #setup-screen { position: fixed; inset: 0; background: var(--bg); z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .card { background: var(--bg); padding: 20px; border-radius: 20px; box-shadow: var(--shadow); width: 90%; text-align: center; }
-        select { width: 100%; padding: 12px; margin: 10px 0; border: none; border-radius: 10px; background: var(--bg); box-shadow: var(--inner); color: var(--purple-accent); font-size: 16px; outline: none; }
+        /* Course Info (Top 10%) */
+        .top-status { height: 40px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 18px; letter-spacing: 2px; }
 
-        /* Header (5-Line Layout) */
-        .header { height: 35vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; text-align: center; gap: 4px; }
-        .line-1 { font-size: 12px; color: var(--purple-main); font-weight: bold; letter-spacing: 1px; }
-        .line-2 { font-size: 18px; color: #555; font-weight: 500; }
-        .line-3 { font-size: 26px; color: var(--purple-accent); font-family: monospace; letter-spacing: 4px; }
-        .line-4 { font-size: 32px; font-weight: 800; color: #2d3436; line-height: 1.2; margin: 4px 0; }
-        .line-5 { font-size: 16px; font-weight: bold; height: 1.5em; transition: 0.3s; }
+        /* Header Area (35%) */
+        .header { height: 32vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; text-align: center; }
+        .line-order { font-size: 24px; color: #444; font-weight: bold; margin-bottom: 2px; }
+        .line-code { font-size: 50px; color: var(--purple-accent); font-family: 'Courier New', monospace; font-weight: 900; letter-spacing: 5px; line-height: 1; }
+        .line-name { font-size: 36px; font-weight: 900; color: #000; line-height: 1.1; margin: 8px 0; width: 95%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .line-result { font-size: 22px; font-weight: 900; height: 1.5em; }
 
-        /* Camera Section (30% - Fixed) */
-        #cam-area { height: 30vh; width: 100%; padding: 0 20px; position: relative; }
-        .cam-frame { width: 100%; height: 100%; border-radius: 20px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
+        /* Camera (25%) */
+        #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; }
+        .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; }
         #video { width: 100%; height: 100%; object-fit: cover; }
-        .guide-container { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-        .guide-rect { width: 260px; height: 70px; border: 3px solid var(--purple-accent); border-radius: 12px; opacity: 0.4; }
+        .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 75px; border: 5px solid var(--purple-accent); border-radius: 15px; box-shadow: 0 0 20px rgba(108, 92, 231, 0.5); }
 
         /* Footer (35%) */
-        .footer { height: 35vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 20px 30px; }
-        .ctrl-row { width: 100%; display: flex; justify-content: center; align-items: center; gap: 15px; }
-        
-        .btn-nav { width: 60px; height: 60px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 24px; }
-        .btn-nav:active { box-shadow: var(--inner); }
+        .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
+        .btn-side { width: 70px; height: 70px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 35px; display: flex; align-items: center; justify-content: center; }
+        .btn-side:active { box-shadow: var(--inner); }
 
-        /* Big Scan Button */
+        /* Large Round Scan Button */
         #scan-main { 
-            flex: 1; height: 85px; max-width: 300px;
-            border-radius: 20px; border: none;
+            width: 140px; height: 140px; border-radius: 50%; border: none;
             background: var(--bg); box-shadow: var(--shadow);
-            color: var(--purple-accent); font-size: 24px; font-weight: 900; 
-            letter-spacing: 2px;
+            color: var(--purple-accent); font-size: 28px; font-weight: 900; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        #scan-main:active { box-shadow: var(--inner); transform: scale(0.97); }
+        #scan-main:active { box-shadow: var(--inner); transform: scale(0.95); }
+        #scan-main small { font-size: 12px; margin-top: 5px; }
 
         #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: 0.3s; z-index: 1000; }
-        .match { background: radial-gradient(circle, rgba(0,206,201,0.3) 0%, transparent 70%); }
-        .mismatch { background: radial-gradient(circle, rgba(255,118,117,0.3) 0%, transparent 70%); }
+        .match { background: radial-gradient(circle, rgba(0,138,138,0.4) 0%, transparent 70%); }
+        .mismatch { background: radial-gradient(circle, rgba(214,48,49,0.4) 0%, transparent 70%); }
+        
+        /* Setup Screen */
+        #setup-screen { position: fixed; inset: 0; background: var(--bg); z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .setup-card { background: var(--bg); padding: 30px; border-radius: 30px; box-shadow: var(--shadow); width: 90%; text-align: center; }
+        select { width: 100%; padding: 20px; font-size: 24px; font-weight: bold; border-radius: 15px; margin: 15px 0; border: none; background: var(--bg); box-shadow: var(--inner); color: var(--purple-accent); }
     </style>
 </head>
 <body>
 
     <div id="setup-screen" style="display:none;">
-        <div class="card">
-            <h3 style="color:var(--purple-accent); margin-bottom:15px;">Course Setup</h3>
+        <div class="setup-card">
+            <h2 style="margin-bottom:20px;">コースを選択</h2>
             <select id="shift-in" onchange="loadCourseMenu()">
-                <option value="1">1st Shift (101-134)</option>
-                <option value="2">2nd Shift (201-234)</option>
-                <option value="3">3rd Shift (301)</option>
+                <option value="1">1便 (101-134)</option>
+                <option value="2">2便 (201-234)</option>
+                <option value="3">3便 (301)</option>
             </select>
             <select id="course-in"></select>
-            <button class="btn-nav" style="width:100%; border-radius:15px; margin-top:15px; font-size:18px; height:50px;" onclick="startApp()">CONFIRM</button>
+            <button class="btn-side" style="width:100%; border-radius:15px; margin-top:20px; font-size:24px; height:60px;" onclick="startApp()">確定</button>
         </div>
     </div>
 
     <div id="flash"></div>
+    <div id="top-tag" class="top-status">COURSE --- ACTIVE</div>
 
     <div class="header">
-        <div id="l1" class="line-1">COURSE SELECTOR</div>
-        <div id="l2" class="line-2">ID: --- - No. -</div>
-        <div id="l3" class="line-3">000000</div>
-        <div id="l4" class="line-4">STORE NAME</div>
-        <div id="l5" class="line-5" style="color: var(--purple-main);">READY</div>
+        <div id="order-label" class="line-order">No. 00</div>
+        <div id="code-label" class="line-code">000000</div>
+        <div id="name-label" class="line-name">店舗名</div>
+        <div id="res-label" class="line-result">待機中</div>
     </div>
 
     <div id="cam-area">
         <div class="cam-frame">
             <video id="video" autoplay playsinline muted></video>
-            <div class="guide-container"><div class="guide-rect"></div></div>
+            <div class="guide-rect"></div>
         </div>
     </div>
     
     <div class="footer">
-        <div class="ctrl-row">
-            <button class="btn-nav" onclick="stepShop(-1)">◀</button>
-            <button id="scan-main" onclick="runScanner()">SCAN</button>
-            <button class="btn-nav" onclick="stepShop(1)">▶</button>
-        </div>
+        <button class="btn-side" onclick="stepShop(-1)">◀</button>
+        <button id="scan-main" onclick="runScanner()">SCAN<small>開始</small></button>
+        <button class="btn-side" onclick="stepShop(1)">▶</button>
     </div>
 
     <script>
         const db = {}; 
         function genData() {
-            for(let c=101; c<=134; c++) db[c] = [{n:`SHOP-ABC-${c}A`, c:`${c}001`}, {n:`SHOP-XYZ-${c}B`, c:`${c}002`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
-            for(let c=201; c<=234; c++) db[c] = [{n:`SHOP-ALPHA-${c}`, c:`${c}111`}, {n:`SHOP-BETA-${c}`, c:`${c}222`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
-            db[301] = [{n:"NIGHT-LOGI-301", c:"301001"}, {n:"MIDNIGHT-EXP", c:"301002"}];
+            for(let c=101; c<=134; c++) db[c] = [{n:`第1配送センター`, c:`${c}001`}, {n:`港町マーケット`, c:`${c}002`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
+            for(let c=201; c<=234; c++) db[c] = [{n:`駅前商店`, c:`${c}111`}, {n:`山の手デポ`, c:`${c}222`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
+            db[301] = [{n:"深夜急行A支店", c:"301001"}, {n:"深夜急行B支店", c:"301002"}];
         }
         genData();
 
-        let myCourse = localStorage.getItem('violet_v17') || null;
+        let myCourse = localStorage.getItem('violet_v18') || null;
         let idx = 0;
         let audio = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -136,21 +133,21 @@
             let end = s==1?134:s==2?234:301;
             for(let i=start; i<=end; i++) {
                 let o = document.createElement('option');
-                o.value = i; o.text = "Course " + i;
+                o.value = i; o.text = i + "コース";
                 menu.add(o);
             }
         }
 
         function startApp() {
             myCourse = document.getElementById('course-in').value;
-            localStorage.setItem('violet_v17', myCourse);
+            localStorage.setItem('violet_v18', myCourse);
             document.getElementById('setup-screen').style.display = 'none';
             boot();
         }
 
         function boot() {
             if(!myCourse) { loadCourseMenu(); document.getElementById('setup-screen').style.display='flex'; return; }
-            document.getElementById('l1').innerText = `COURSE ${myCourse} ACTIVE`;
+            document.getElementById('top-tag').innerText = `COURSE ${myCourse} ACTIVE`;
             ui();
             cam();
         }
@@ -158,11 +155,12 @@
         function ui() {
             const list = db[myCourse];
             const item = list[idx];
-            document.getElementById('l2').innerText = `${myCourse} - No.${idx+1}`;
-            document.getElementById('l3').innerText = item.c;
-            document.getElementById('l4').innerText = item.n;
-            document.getElementById('l5').innerText = "READY";
-            document.getElementById('l5').style.color = "var(--purple-main)";
+            // 2桁表示 (01, 02...)
+            document.getElementById('order-label').innerText = `No. ${String(idx + 1).padStart(2, '0')}`;
+            document.getElementById('code-label').innerText = item.c;
+            document.getElementById('name-label').innerText = item.n;
+            document.getElementById('res-label').innerText = "スキャン待機中";
+            document.getElementById('res-label').style.color = "var(--purple-main)";
         }
 
         function stepShop(d) {
@@ -176,24 +174,22 @@
             try {
                 const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } });
                 v.srcObject = s;
-            } catch (e) { alert("Camera Error"); }
+            } catch (e) { alert("カメラ使用を許可してください"); }
         }
 
         async function runScanner() {
             if(audio.state === 'suspended') audio.resume();
             playBeep();
             const btn = document.getElementById('scan-main');
-            const l5 = document.getElementById('l5');
+            const resL = document.getElementById('res-label');
             const flash = document.getElementById('flash');
             btn.disabled = true;
-            l5.innerText = "ANALYZING...";
+            resL.innerText = "読み取り中...";
 
             const v = document.getElementById('video');
             const canvas = document.createElement('canvas');
-            
-            // 高速化のためのリサイズ処理
             const sW = v.videoWidth * 0.6; const sH = v.videoHeight * 0.15;
-            canvas.width = 300; // 読み取りサイズをさらに絞る
+            canvas.width = 300; 
             canvas.height = (sH * (300 / sW));
             canvas.getContext('2d').drawImage(v, (v.videoWidth-sW)/2, (v.videoHeight-sH)/2, sW, sH, 0, 0, canvas.width, canvas.height);
 
@@ -203,16 +199,17 @@
                 const target = db[myCourse][idx].c;
                 
                 if (raw.includes(target)) {
-                    l5.innerText = `MATCH: ${raw.slice(0,6)}`;
-                    l5.style.color = "var(--cyan)";
+                    resL.innerText = `OK: ${raw.slice(0,6)}`;
+                    resL.style.color = "var(--cyan)";
                     flash.className = "match"; flash.style.opacity = 1;
                     if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
                 } else {
-                    l5.innerText = `NG: ${raw.slice(0,6) || "EMPTY"}`;
-                    l5.style.color = "var(--red)";
+                    resL.innerText = `NG: ${raw.slice(0,6) || "不明"}`;
+                    resL.style.color = "var(--red)";
                     flash.className = "mismatch"; flash.style.opacity = 1;
+                    if(navigator.vibrate) navigator.vibrate(400);
                 }
-            } catch (e) { l5.innerText = "SCAN ERROR"; }
+            } catch (e) { resL.innerText = "エラー"; }
             setTimeout(() => { btn.disabled = false; flash.style.opacity = 0; }, 1500);
         }
         window.onload = boot;
