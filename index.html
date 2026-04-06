@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v23</title>
+    <title>VIOLET Scanner</title>
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" sizes="192x192" href="https://cdn-icons-png.flaticon.com/512/9561/9561688.png">
+
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -27,12 +33,15 @@
         .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
         #video { width: 100%; height: 100%; object-fit: cover; }
         .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 80px; border: 2px solid var(--purple-accent); border-radius: 15px; box-shadow: 0 0 15px rgba(108, 92, 231, 0.3); z-index: 10; }
+        
         #manual-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 4000; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         #manual-input { width: 90%; padding: 15px; font-size: 45px; text-align: center; border-radius: 15px; border: 4px solid var(--purple-accent); background: white; color: black; letter-spacing: 10px; margin-bottom: 30px; }
+        
         .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
         .btn-side { width: 75px; height: 75px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 40px; display: flex; align-items: center; justify-content: center; }
-        #scan-main { width: 155px; height: 155px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 34px; font-weight: 900; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #scan-main { width: 155px; height: 155px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 34px; font-weight: 900; display: flex; flex-direction: column; align-items: center; justify-content: center; outline: none; }
         #scan-main:active { box-shadow: var(--inner); transform: scale(0.95); }
+        
         #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: 0.3s; z-index: 1000; }
         .match { background: radial-gradient(circle, rgba(0,138,138,0.4) 0%, transparent 70%); }
         .mismatch { background: radial-gradient(circle, rgba(214,48,49,0.4) 0%, transparent 70%); }
@@ -57,7 +66,7 @@
     </div>
 
     <div id="manual-box">
-        <h2 style="color:white; margin-bottom:20px;">数字を直接入力</h2>
+        <h2 style="color:white; margin-bottom:20px;">手入力判定</h2>
         <input type="tel" id="manual-input" maxlength="6" placeholder="------" autocomplete="off">
         <button class="btn-side" style="width:160px; border-radius:15px; font-size:20px;" onclick="closeManual()">戻る</button>
     </div>
@@ -66,8 +75,8 @@
     <div id="top-id-display" class="top-id-bar">--- - --</div>
 
     <div class="header">
-        <div id="name-label" class="line-name">博多吉塚六丁目</div>
-        <div id="code-label" class="line-code">357280</div>
+        <div id="name-label" class="line-name">店舗名読み込み中</div>
+        <div id="code-label" class="line-code">000000</div>
         <div id="res-label" class="line-result">READY</div>
     </div>
 
@@ -80,7 +89,7 @@
     
     <div class="footer">
         <button class="btn-side" onclick="stepShop(-1)">◀</button>
-        <button id="scan-main" onclick="runScanner()">SCAN<small>開始</small></button>
+        <button id="scan-main" onclick="handleScanButton()">SCAN<small>開始</small></button>
         <button class="btn-side" onclick="stepShop(1)">▶</button>
     </div>
 
@@ -88,53 +97,63 @@
         const db = {}; 
         function genData() {
             db[226] = [{n:"博多吉塚六丁目", c:"357280"}, {n:"博多駅前支店", c:"123456"}];
-            for(let c=101; c<=134; c++) if(!db[c]) db[c] = [{n:`第1配送センター`, c:`${c}001`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
-            for(let c=201; c<=234; c++) if(!db[c]) db[c] = [{n:`駅前商店`, c:`${c}111`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
+            for(let c=101; c<=134; c++) if(!db[c]) db[c] = [{n:`店舗-${c}-A`, c:`${c}001`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
+            for(let c=201; c<=234; c++) if(!db[c]) db[c] = [{n:`店舗-${c}-X`, c:`${c}111`}].map(v => ({n:v.n, c:v.c.padStart(6,'0')}));
             db[301] = [{n:"深夜急行支店", c:"301001"}];
         }
         genData();
 
-        let myCourse = localStorage.getItem('violet_v23') || null;
+        let myCourse = localStorage.getItem('violet_v24') || null;
         let idx = 0;
-        let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let audioCtx = null;
 
-        // お洒落なサウンド生成
-        function playSound(type) {
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            const now = audioCtx.currentTime;
+        }
 
-            if (type === 'ok') {
-                // ピンポーン (F5 -> A5)
-                const freq = [698.46, 880.00]; 
-                freq.forEach((f, i) => {
-                    const osc = audioCtx.createOscillator();
+        // 音の生成ロジック
+        function playSound(type) {
+            initAudio();
+            const now = audioCtx.currentTime;
+            if (type === 'start') {
+                // ピピッ
+                [1200, 1600].forEach((f, i) => {
+                    const o = audioCtx.createOscillator();
                     const g = audioCtx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(f, now + i * 0.15);
-                    g.gain.setValueAtTime(0, now + i * 0.15);
-                    g.gain.linearRampToValueAtTime(0.1, now + i * 0.15 + 0.05);
+                    o.frequency.setValueAtTime(f, now + i * 0.05);
+                    g.gain.setValueAtTime(0.1, now + i * 0.05);
+                    g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.05 + 0.04);
+                    o.connect(g); g.connect(audioCtx.destination);
+                    o.start(now + i * 0.05); o.stop(now + i * 0.05 + 0.05);
+                });
+            } else if (type === 'ok') {
+                // ピンポーン
+                [698, 880].forEach((f, i) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.frequency.setValueAtTime(f, now + i * 0.15);
+                    g.gain.setValueAtTime(0.1, now + i * 0.15);
                     g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.4);
-                    osc.connect(g); g.connect(audioCtx.destination);
-                    osc.start(now + i * 0.15); osc.stop(now + i * 0.15 + 0.5);
+                    o.connect(g); g.connect(audioCtx.destination);
+                    o.start(now + i * 0.15); o.stop(now + i * 0.15 + 0.5);
                 });
             } else if (type === 'ng') {
-                // ブッブー (G#3 濁った音)
-                const osc1 = audioCtx.createOscillator();
-                const osc2 = audioCtx.createOscillator();
+                // ブッブー
+                const o1 = audioCtx.createOscillator();
+                const o2 = audioCtx.createOscillator();
                 const g = audioCtx.createGain();
-                osc1.type = 'sawtooth'; osc2.type = 'sawtooth';
-                osc1.frequency.setValueAtTime(207.65, now);
-                osc2.frequency.setValueAtTime(210, now); // 少しずらして濁らせる
-                g.gain.setValueAtTime(0, now);
-                g.gain.linearRampToValueAtTime(0.05, now + 0.05);
+                o1.frequency.setValueAtTime(200, now);
+                o2.frequency.setValueAtTime(205, now);
+                o1.type = 'sawtooth'; o2.type = 'sawtooth';
+                g.gain.setValueAtTime(0.05, now);
                 g.gain.linearRampToValueAtTime(0, now + 0.4);
-                osc1.connect(g); osc2.connect(g); g.connect(audioCtx.destination);
-                osc1.start(now); osc2.start(now);
-                osc1.stop(now + 0.5); osc2.stop(now + 0.5);
+                o1.connect(g); o2.connect(g); g.connect(audioCtx.destination);
+                o1.start(now); o2.start(now);
+                o1.stop(now + 0.4); o2.stop(now + 0.4);
             }
         }
 
-        // --- 以下、既存のロジック ---
         function loadCourseMenu() {
             const s = document.getElementById('shift-in').value;
             const menu = document.getElementById('course-in');
@@ -150,8 +169,9 @@
         }
 
         function startApp() {
+            initAudio(); // 最初のユーザー操作でオーディオを解禁
             myCourse = document.getElementById('course-in').value;
-            localStorage.setItem('violet_v23', myCourse);
+            localStorage.setItem('violet_v24', myCourse);
             document.getElementById('setup-screen').style.display = 'none';
             boot();
         }
@@ -187,6 +207,7 @@
         }
 
         function openManual() {
+            initAudio();
             document.getElementById('manual-box').style.display = 'flex';
             const input = document.getElementById('manual-input');
             input.value = ""; input.focus();
@@ -199,6 +220,11 @@
                 setTimeout(closeManual, 500);
             }
         });
+
+        async function handleScanButton() {
+            playSound('start'); // 開始音
+            runScanner();
+        }
 
         async function runScanner() {
             const btn = document.getElementById('scan-main');
@@ -224,19 +250,18 @@
             const resL = document.getElementById('res-label');
             const flash = document.getElementById('flash');
             const target = db[myCourse][idx].c;
-            
             if (input.includes(target)) {
                 resL.innerText = `OK: ${target}`;
                 resL.style.color = "var(--cyan)";
                 flash.className = "match"; flash.style.opacity = 1;
                 playSound('ok');
-                if(navigator.vibrate) navigator.vibrate([100, 50, 100]); // 軽快な2連
+                if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
             } else {
                 resL.innerText = `NG: ${input.slice(0,6) || "????"}`;
                 resL.style.color = "var(--red)";
                 flash.className = "mismatch"; flash.style.opacity = 1;
                 playSound('ng');
-                if(navigator.vibrate) navigator.vibrate(400); // どっしり1回
+                if(navigator.vibrate) navigator.vibrate(400);
             }
             setTimeout(() => { flash.style.opacity = 0; }, 1000);
         }
