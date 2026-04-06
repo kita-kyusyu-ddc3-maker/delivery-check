@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v22</title>
+    <title>Scanner VIOLET v23</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -16,74 +16,26 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { 
-            background: var(--bg); color: #000; font-family: sans-serif; 
-            height: 100vh; width: 100vw; display: flex; flex-direction: column; 
-            overflow: hidden; 
-        }
+        body { background: var(--bg); color: #000; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-        /* 1段目：コース - 順番 (確実に表示するため高さを固定) */
-        .top-id-bar { 
-            height: 70px; min-height: 70px;
-            background: var(--purple-accent); color: white; 
-            display: flex; align-items: center; justify-content: center; 
-            font-weight: 900; font-size: 42px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            z-index: 100;
-        }
-
-        /* ヘッダーエリア (2段目〜4段目：高さを調整) */
-        .header { 
-            flex: 1; max-height: 30vh;
-            display: flex; flex-direction: column; justify-content: center; 
-            align-items: center; padding: 10px; text-align: center; 
-        }
-        /* 2段目：店舗名 (最大) */
+        .top-id-bar { height: 70px; min-height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 42px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 100; }
+        .header { flex: 1; max-height: 30vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; text-align: center; }
         .line-name { font-size: 38px; font-weight: 900; color: #000; line-height: 1.1; width: 95%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-        /* 3段目：正解コード */
         .line-code { font-size: 52px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; margin: 5px 0; }
-        /* 4段目：結果表示 */
         .line-result { font-size: 26px; font-weight: 900; height: 1.2em; color: #888; }
-
-        /* カメラエリア (高さを25%に固定) */
         #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; display: flex; align-items: center; justify-content: center; }
         .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
         #video { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* ガイド枠（細線） */
-        .guide-rect { 
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-            width: 280px; height: 80px; border: 2px solid var(--purple-accent); border-radius: 15px; 
-            box-shadow: 0 0 15px rgba(108, 92, 231, 0.3); z-index: 10;
-        }
-
-        /* 手入力用モーダル */
-        #manual-box {
-            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 4000;
-            flex-direction: column; align-items: center; justify-content: center; padding: 20px;
-        }
-        #manual-input {
-            width: 90%; padding: 15px; font-size: 45px; text-align: center; border-radius: 15px; border: 4px solid var(--purple-accent); 
-            background: white; color: black; letter-spacing: 10px; margin-bottom: 30px;
-        }
-
-        /* フッターエリア (35%) */
+        .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 80px; border: 2px solid var(--purple-accent); border-radius: 15px; box-shadow: 0 0 15px rgba(108, 92, 231, 0.3); z-index: 10; }
+        #manual-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 4000; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        #manual-input { width: 90%; padding: 15px; font-size: 45px; text-align: center; border-radius: 15px; border: 4px solid var(--purple-accent); background: white; color: black; letter-spacing: 10px; margin-bottom: 30px; }
         .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
         .btn-side { width: 75px; height: 75px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 40px; display: flex; align-items: center; justify-content: center; }
-        
-        /* 丸型スキャンボタン */
-        #scan-main { 
-            width: 155px; height: 155px; border-radius: 50%; border: none; 
-            background: var(--bg); box-shadow: var(--shadow); 
-            color: var(--purple-accent); font-size: 34px; font-weight: 900; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-        }
+        #scan-main { width: 155px; height: 155px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 34px; font-weight: 900; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         #scan-main:active { box-shadow: var(--inner); transform: scale(0.95); }
-
         #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: 0.3s; z-index: 1000; }
         .match { background: radial-gradient(circle, rgba(0,138,138,0.4) 0%, transparent 70%); }
         .mismatch { background: radial-gradient(circle, rgba(214,48,49,0.4) 0%, transparent 70%); }
-        
         #setup-screen { position: fixed; inset: 0; background: var(--bg); z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .setup-card { background: var(--bg); padding: 30px; border-radius: 30px; box-shadow: var(--shadow); width: 90%; text-align: center; }
         select { width: 100%; padding: 20px; font-size: 24px; font-weight: bold; border-radius: 15px; margin: 15px 0; border: none; background: var(--bg); box-shadow: var(--inner); color: var(--purple-accent); }
@@ -111,7 +63,6 @@
     </div>
 
     <div id="flash"></div>
-
     <div id="top-id-display" class="top-id-bar">--- - --</div>
 
     <div class="header">
@@ -143,22 +94,47 @@
         }
         genData();
 
-        let myCourse = localStorage.getItem('violet_v22') || null;
+        let myCourse = localStorage.getItem('violet_v23') || null;
         let idx = 0;
-        let audio = new (window.AudioContext || window.webkitAudioContext)();
+        let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        function playBeep() {
-            const now = audio.currentTime;
-            [1300, 1700].forEach((f, i) => {
-                const o = audio.createOscillator();
-                const g = audio.createGain();
-                o.frequency.setValueAtTime(f, now + i*0.06);
-                o.connect(g); g.connect(audio.destination);
-                g.gain.setValueAtTime(0.1, now + i*0.06);
-                o.start(now + i*0.06); o.stop(now + i*0.06 + 0.05);
-            });
+        // お洒落なサウンド生成
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+
+            if (type === 'ok') {
+                // ピンポーン (F5 -> A5)
+                const freq = [698.46, 880.00]; 
+                freq.forEach((f, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(f, now + i * 0.15);
+                    g.gain.setValueAtTime(0, now + i * 0.15);
+                    g.gain.linearRampToValueAtTime(0.1, now + i * 0.15 + 0.05);
+                    g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.4);
+                    osc.connect(g); g.connect(audioCtx.destination);
+                    osc.start(now + i * 0.15); osc.stop(now + i * 0.15 + 0.5);
+                });
+            } else if (type === 'ng') {
+                // ブッブー (G#3 濁った音)
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                osc1.type = 'sawtooth'; osc2.type = 'sawtooth';
+                osc1.frequency.setValueAtTime(207.65, now);
+                osc2.frequency.setValueAtTime(210, now); // 少しずらして濁らせる
+                g.gain.setValueAtTime(0, now);
+                g.gain.linearRampToValueAtTime(0.05, now + 0.05);
+                g.gain.linearRampToValueAtTime(0, now + 0.4);
+                osc1.connect(g); osc2.connect(g); g.connect(audioCtx.destination);
+                osc1.start(now); osc2.start(now);
+                osc1.stop(now + 0.5); osc2.stop(now + 0.5);
+            }
         }
 
+        // --- 以下、既存のロジック ---
         function loadCourseMenu() {
             const s = document.getElementById('shift-in').value;
             const menu = document.getElementById('course-in');
@@ -175,7 +151,7 @@
 
         function startApp() {
             myCourse = document.getElementById('course-in').value;
-            localStorage.setItem('violet_v22', myCourse);
+            localStorage.setItem('violet_v23', myCourse);
             document.getElementById('setup-screen').style.display = 'none';
             boot();
         }
@@ -213,12 +189,10 @@
         function openManual() {
             document.getElementById('manual-box').style.display = 'flex';
             const input = document.getElementById('manual-input');
-            input.value = "";
-            input.focus();
+            input.value = ""; input.focus();
         }
-        function closeManual() {
-            document.getElementById('manual-box').style.display = 'none';
-        }
+        function closeManual() { document.getElementById('manual-box').style.display = 'none'; }
+        
         document.getElementById('manual-input').addEventListener('input', function(e) {
             if(this.value.length === 6) {
                 checkResult(this.value);
@@ -227,8 +201,6 @@
         });
 
         async function runScanner() {
-            if(audio.state === 'suspended') audio.resume();
-            playBeep();
             const btn = document.getElementById('scan-main');
             const resL = document.getElementById('res-label');
             btn.disabled = true;
@@ -252,16 +224,19 @@
             const resL = document.getElementById('res-label');
             const flash = document.getElementById('flash');
             const target = db[myCourse][idx].c;
+            
             if (input.includes(target)) {
                 resL.innerText = `OK: ${target}`;
                 resL.style.color = "var(--cyan)";
                 flash.className = "match"; flash.style.opacity = 1;
-                if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                playSound('ok');
+                if(navigator.vibrate) navigator.vibrate([100, 50, 100]); // 軽快な2連
             } else {
                 resL.innerText = `NG: ${input.slice(0,6) || "????"}`;
                 resL.style.color = "var(--red)";
                 flash.className = "mismatch"; flash.style.opacity = 1;
-                if(navigator.vibrate) navigator.vibrate(400);
+                playSound('ng');
+                if(navigator.vibrate) navigator.vibrate(400); // どっしり1回
             }
             setTimeout(() => { flash.style.opacity = 0; }, 1000);
         }
