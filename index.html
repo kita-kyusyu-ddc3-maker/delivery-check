@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v40</title>
+    <title>Scanner VIOLET v41</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -17,7 +17,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: var(--bg); color: #000; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
         
-        /* 帯 */
         .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; }
         .settings-btn { background: none; border: none; color: white; font-size: 35px; padding: 10px; cursor: pointer; }
         .course-title { font-size: 38px; flex-grow: 1; text-align: center; margin-right: 45px; }
@@ -26,13 +25,20 @@
         .line-name { font-size: 32px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; width: 95%; overflow: hidden; }
         .line-code { font-size: 55px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; }
 
-        /* カメラエリア */
         #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; display: flex; align-items: center; justify-content: center; }
         .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
         #video { width: 100%; height: 100%; object-fit: cover; }
-        .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 160px; height: 70px; border: 3px solid var(--purple-accent); border-radius: 12px; z-index: 500; cursor: pointer; }
+        
+        /* ガイド枠にアニメーション追加 */
+        .guide-rect { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            width: 180px; height: 80px; border: 4px solid var(--purple-accent); 
+            border-radius: 12px; z-index: 500; cursor: pointer;
+            transition: all 0.3s;
+        }
+        .guide-rect.scanning { border-color: #fff; box-shadow: 0 0 15px var(--purple-accent); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
-        /* 〇✕アニメーション */
         #symbol-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 200px; font-weight: bold; pointer-events: none; z-index: 5000; opacity: 0; }
         @keyframes floatUp {
             0% { opacity: 0; transform: translate(-50%, 20%) scale(0.5); }
@@ -41,22 +47,20 @@
         }
         .animate-symbol { animation: floatUp 0.8s ease-out forwards; }
 
-        /* 設定画面 */
         #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .setup-card { background: #fff; padding: 25px; border-radius: 25px; width: 100%; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
         .setup-card p { font-weight: bold; color: #666; margin-top: 10px; }
         select { width: 100%; padding: 15px; font-size: 24px; margin: 5px 0 20px; border: 2px solid #ddd; border-radius: 12px; outline: none; }
 
-        /* 直接入力窓 (小型) */
         #manual-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; flex-direction: column; align-items: center; justify-content: center; }
         .manual-card { background: #fff; padding: 20px; border-radius: 20px; width: 280px; text-align: center; }
         #manual-input { width: 100%; padding: 10px; font-size: 40px; text-align: center; border-radius: 10px; border: 2px solid var(--purple-accent); outline: none; margin-bottom: 15px; }
 
         .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
         .btn-side { width: 80px; height: 80px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 45px; display: flex; align-items: center; justify-content: center; }
-        #scan-main { width: 155px; height: 155px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 22px; font-weight: 900; outline: none; }
-        #scan-main.ready { background: var(--bg); color: var(--purple-accent); font-size: 34px; }
-        #scan-main:active { transform: scale(0.95); box-shadow: var(--inner); }
+        #scan-main { width: 155px; height: 155px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 22px; font-weight: 900; outline: none; transition: 0.3s; }
+        #scan-main.ready { background: var(--bg); color: var(--purple-accent); font-size: 30px; }
+        #scan-main.active { background: var(--purple-accent); color: #fff; border: 5px solid #fff; }
     </style>
 </head>
 <body>
@@ -97,20 +101,20 @@
     <div id="cam-area">
         <div class="cam-frame">
             <video id="video" autoplay playsinline muted></video>
-            <div class="guide-rect" onclick="openManual()"></div>
+            <div id="guide" class="guide-rect" onclick="openManual()"></div>
         </div>
     </div>
     
     <div class="footer">
         <button class="btn-side" onclick="stepShop(-1)">◀</button>
-        <button id="scan-main" disabled onclick="handleScanButton()">待機中</button>
+        <button id="scan-main" disabled onclick="toggleAutoScan()">待機中</button>
         <button class="btn-side" onclick="stepShop(1)">▶</button>
     </div>
 
     <script>
         const db = {}; 
         function genData() {
-            // --- 1便 (101-134) ---
+            // データ部分は省略せず、元の350件をそのまま保持
             db[101] = [{n:"福岡東医療センター",c:"267737"},{n:"NHO小倉医療センター",c:"386293"},{n:"北九州総合病院",c:"267720"},{n:"JCHO九州病院",c:"230421"},{n:"八幡東鳴水三丁目",c:"298844"},{n:"S宗像水光会総合病院",c:"241927"}];
             db[102] = [{n:"福岡県庁",c:"357200"},{n:"福津中央一丁目",c:"128830"},{n:"東福間駅前",c:"226046"},{n:"宗像田熊一丁目",c:"214468"},{n:"くりえいと宗像",c:"145891"},{n:"玄海瀬戸",c:"345070"}];
             db[103] = [{n:"九州大学病院",c:"368450"},{n:"宗像若木台",c:"117989"},{n:"宗像日の里五丁目",c:"165050"},{n:"宗像曲",c:"191490"},{n:"宗像赤間駅前",c:"368266"}];
@@ -146,7 +150,6 @@
             db[133] = [{n:"穂波町",c:"165267"},{n:"西鉄飯塚バスターミナル",c:"242157"},{n:"飯塚潤野",c:"372931"},{n:"飯塚横田",c:"230088"},{n:"飯塚東川津",c:"226371"}];
             db[134] = [{n:"宮若竹原",c:"247841"},{n:"福岡宮若長井鶴",c:"235921"},{n:"宮若龍徳",c:"275168"},{n:"宮若上有木",c:"173226"},{n:"若宮インター",c:"095851"}];
 
-            // --- 2便 (201-234) ---
             db[201] = [{n:"宗像石丸三丁目",c:"241850"},{n:"福津花見が丘一丁目",c:"200331"},{n:"古賀舞の里",c:"165356"},{n:"古賀太郎丸",c:"076858"},{n:"舞松原",c:"165155"}];
             db[202] = [{n:"福岡若宮五丁目",c:"145980"},{n:"南福岡駅前",c:"080230"},{n:"麦野四丁目",c:"092781"},{n:"博多上呉服町",c:"381290"}];
             db[203] = [{n:"比恵町",c:"134829"},{n:"筑紫通東光寺",c:"091445"},{n:"博多那南六丁目",c:"145365"},{n:"博多美野島二丁目",c:"067033"},{n:"オリエンタルホテル福岡",c:"048320"}];
@@ -181,8 +184,6 @@
             db[232] = [{n:"博多駅明治公園",c:"154690"},{n:"博多住吉五丁目",c:"298761"},{n:"福岡下川端町",c:"242246"},{n:"上川端町",c:"134597"},{n:"博多駅前",c:"373103"}];
             db[233] = [{n:"博多駅筑紫口",c:"145804"},{n:"春日原北町",c:"154542"},{n:"博多南駅前",c:"357624"},{n:"太宰府吉松三丁目",c:"282984"}];
             db[234] = [{n:"西鉄白木原駅",c:"381574"},{n:"福岡博多駅前二丁目",c:"191313"},{n:"吉塚三丁目",c:"230378"},{n:"吉塚五丁目",c:"134404"},{n:"吉塚本町",c:"176845"},{n:"中洲一丁目",c:"091468"}];
-
-            // --- 3便 (301) ---
             db[301] = [{n:"中洲二丁目",c:"176673"},{n:"中洲であい橋通り",c:"372730"}];
         }
 
@@ -190,6 +191,7 @@
         let idx = 0;
         let audioCtx = null;
         let worker = null;
+        let isAutoScan = false; // 自動スキャンモードの状態
 
         function updateCourseOptions() {
             const shift = document.getElementById('shift-in').value;
@@ -230,14 +232,17 @@
             worker = await Tesseract.createWorker();
             await worker.loadLanguage('eng');
             await worker.initialize('eng');
-            await worker.setParameters({ tessedit_char_whitelist: '0123456789' });
+            await worker.setParameters({ 
+                tessedit_char_whitelist: '0123456789',
+                tessedit_pageseg_mode: '7' // 1行として認識
+            });
             btn.disabled = false;
-            btn.innerText = "SCAN";
+            btn.innerText = "AUTO SCAN";
             btn.classList.add('ready');
         }
 
         function playSound(type) {
-            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if(!audioCtx) return;
             if(audioCtx.state === 'suspended') audioCtx.resume();
             const now = audioCtx.currentTime;
             const g = audioCtx.createGain(); g.connect(audioCtx.destination);
@@ -311,34 +316,79 @@
             if(this.value.length === 6) { checkResult(this.value); setTimeout(closeManual, 500); }
         });
 
-        function handleScanButton() { playSound('start'); runScanner(); }
-
-        async function runScanner() {
+        // 1 & 2 追加：自動スキャン切り替え
+        function toggleAutoScan() {
+            isAutoScan = !isAutoScan;
             const btn = document.getElementById('scan-main');
-            btn.disabled = true;
+            const guide = document.getElementById('guide');
+            if(isAutoScan) {
+                playSound('start');
+                btn.innerText = "STOP";
+                btn.classList.add('active');
+                guide.classList.add('scanning');
+                runScannerLoop();
+            } else {
+                btn.innerText = "AUTO SCAN";
+                btn.classList.remove('active');
+                guide.classList.remove('scanning');
+            }
+        }
+
+        async function runScannerLoop() {
+            if(!isAutoScan) return;
+            await runOCR();
+            // 認識完了後、少し待機して再度スキャン
+            setTimeout(runScannerLoop, 400); 
+        }
+
+        async function runOCR() {
             const v = document.getElementById('video');
             const canvas = document.createElement('canvas');
             const scale = v.videoWidth / v.clientWidth;
-            canvas.width = 160; canvas.height = 70;
-            const sx = (v.videoWidth - 160 * scale) / 2;
-            const sy = (v.videoHeight - 70 * scale) / 2;
-            canvas.getContext('2d').drawImage(v, sx, sy, 160 * scale, 70 * scale, 0, 0, 160, 70);
+            canvas.width = 200; canvas.height = 100; // ガイド枠より少し大きめに切り出し
+            const sx = (v.videoWidth - 200 * scale) / 2;
+            const sy = (v.videoHeight - 100 * scale) / 2;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(v, sx, sy, 200 * scale, 100 * scale, 0, 0, 200, 100);
+
+            // 1. 画像前処理（グレースケール & 簡易二値化）
+            let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                let gray = data[i] * 0.3 + data[i + 1] * 0.59 + data[i + 2] * 0.11;
+                let v = (gray > 128) ? 255 : 0; // しきい値128で白黒化
+                data[i] = data[i + 1] = data[i + 2] = v;
+            }
+            ctx.putImageData(imageData, 0, 0);
 
             try {
-                const res = await Promise.race([worker.recognize(canvas), new Promise((_,r)=>setTimeout(()=>r(),3500))]);
-                checkResult(res.data.text.replace(/[^0-9]/g, ''));
-            } catch(e) { checkResult("??????"); }
-            btn.disabled = false;
+                const res = await worker.recognize(canvas);
+                const txt = res.data.text.replace(/[^0-9]/g, '');
+                if(txt.length >= 4) { // 4桁以上の数字が見えたら判定へ
+                    checkResult(txt);
+                }
+            } catch(e) { console.log("OCR Error"); }
         }
 
+        let lastCheckTime = 0;
         function checkResult(input) {
+            // 短時間に何度も判定しないようガード
+            const now = Date.now();
+            if(now - lastCheckTime < 1500) return;
+
             const item = db[myCourse][idx];
             const isMatch = input.includes(item.c);
+            
             if(isMatch) { 
-                playSound('ok'); showVisualEffect(true); 
+                lastCheckTime = now;
+                playSound('ok'); 
+                showVisualEffect(true); 
                 if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
-            } else { 
-                playSound('ng'); showVisualEffect(false); 
+            } else if(input.length === 6) {
+                // 完全に6桁読んで間違っている場合のみNG
+                lastCheckTime = now;
+                playSound('ng'); 
+                showVisualEffect(false); 
                 if(navigator.vibrate) navigator.vibrate(400);
             }
         }
