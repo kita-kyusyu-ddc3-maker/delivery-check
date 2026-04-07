@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v43</title>
+    <title>Scanner VIOLET v43.1</title>
+    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
-    
+    <meta name="display" content="standalone">
+
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -19,18 +21,23 @@
             --inner: inset 4px 4px 8px #d1d1d6, inset -4px -4px 8px #ffffff;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        /* 画面全体をデバイスの高さに固定 */
+        html, body { height: 100%; width: 100%; overflow: hidden; }
+
         body { 
             background: var(--bg); color: #000; font-family: sans-serif; 
-            height: 100vh; display: flex; flex-direction: column; 
-            overflow: hidden; position: relative;
-            padding-top: env(safe-area-inset-top); /* iPhoneのノッチ対策 */
+            display: flex; flex-direction: column; 
+            padding-top: env(safe-area-inset-top); /* iPhoneのノッチ部分の余白 */
+            padding-bottom: env(safe-area-inset-bottom);
         }
         
-        .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; }
+        /* 以下、V43のスタイルを継承 */
+        .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; flex-shrink: 0; }
         .settings-btn { background: none; border: none; color: white; font-size: 35px; padding: 10px; cursor: pointer; }
         .course-title { font-size: 38px; flex-grow: 1; text-align: center; margin-right: 45px; }
 
-        .header { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; text-align: center; }
+        .header { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; text-align: center; }
         .line-name { font-size: 32px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; width: 95%; overflow: hidden; }
         .line-code { font-size: 55px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; }
 
@@ -51,8 +58,7 @@
         }
         .animate-symbol { animation: floatUp 0.8s ease-out forwards; }
 
-        /* 設定・リスト画面 */
-        #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: none; flex-direction: column; padding: 20px; padding-top: 40px; }
+        #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: none; flex-direction: column; padding: 20px; padding-top: 60px; }
         .setup-card { background: #fff; padding: 20px; border-radius: 25px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-bottom: 20px; flex-shrink: 0; }
         
         .list-container { flex-grow: 1; overflow-y: auto; background: #fff; border-radius: 20px; box-shadow: var(--shadow); padding: 10px; }
@@ -61,14 +67,13 @@
         .list-item.done { background: #f0fff4; color: #2ecc71; }
         .list-item .unit-count { font-size: 15px; color: #666; background: #e0e0e0; padding: 3px 10px; border-radius: 6px; }
 
-        /* 独自ポップアップ (Alert代わり) */
         #custom-popup { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px; }
         .popup-card { background: #fff; padding: 25px; border-radius: 20px; width: 100%; max-width: 320px; text-align: center; }
         .popup-content { margin: 20px 0; font-size: 18px; line-height: 1.5; white-space: pre-wrap; text-align: left; max-height: 300px; overflow-y: auto; }
 
-        .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
+        .footer { height: 32vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 10px; flex-shrink: 0; }
         .btn-side { width: 80px; height: 80px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 45px; display: flex; align-items: center; justify-content: center; outline: none; }
-        #scan-main { width: 155px; height: 155px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 20px; font-weight: 900; outline: none; transition: 0.2s; }
+        #scan-main { width: 150px; height: 150px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 20px; font-weight: 900; outline: none; transition: 0.2s; }
         #scan-main.ready { background: var(--bg); color: var(--purple-accent); font-size: 28px; }
         #scan-main.active { background: var(--purple-accent); color: #fff; box-shadow: var(--inner); }
     </style>
@@ -92,17 +97,14 @@
             <select id="course-in" onchange="playSound('tap');" style="width:100%; padding:15px; font-size:20px; margin-bottom:15px; border-radius:10px; border:1px solid #ccc;"></select>
             <button onclick="applySettings(); playSound('ok');" style="width:100%; height:60px; background:var(--purple-accent); color:#fff; border:none; border-radius:12px; font-size:20px; font-weight:bold;">設定を確定</button>
         </div>
-        
         <div class="list-container">
             <div class="list-title">DELIVERY HISTORY</div>
             <div class="delivery-list" id="delivery-list-ui"></div>
         </div>
-        
         <button onclick="document.getElementById('setup-screen').style.display='none'; playSound('tap');" style="margin-top:20px; width:100%; padding:18px; background:#666; color:#fff; border:none; border-radius:12px; font-size:18px; flex-shrink:0;">閉じる</button>
     </div>
 
     <div id="symbol-overlay"></div>
-    
     <div class="top-id-bar">
         <button class="settings-btn" onclick="openSetup(); playSound('tap');">⚙</button>
         <div id="top-id-display" class="course-title">VIOLET PRO</div>
@@ -235,7 +237,7 @@
                 div.innerHTML = `<span>${isDone ? '✔ ' : ''}${i+1}. ${s.n}</span><span class="unit-count">${myHist.length}台</span>`;
                 div.onclick = () => {
                     playSound('tap');
-                    if(myHist.length === 0) showPopup("HISTORY", "納品記録はありません");
+                    if(myHist.length === 0) showPopup("HISTORY", "記録なし");
                     else showPopup(s.n, "納品履歴:\n" + myHist.map(h => `・${h.date} ${h.time}`).join("\n"));
                 };
                 listUi.appendChild(div);
@@ -324,7 +326,7 @@
                 showVisual(true); playSound('ok');
                 scanStep = 1; updateStepLabel();
                 if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
-                toggleAutoScan(); // シールスキャン完了でオート停止
+                toggleAutoScan(); 
             }
         }
 
