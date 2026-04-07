@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v42-PRO</title>
+    <title>Scanner VIOLET v43</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -15,7 +19,12 @@
             --inner: inset 4px 4px 8px #d1d1d6, inset -4px -4px 8px #ffffff;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: var(--bg); color: #000; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        body { 
+            background: var(--bg); color: #000; font-family: sans-serif; 
+            height: 100vh; display: flex; flex-direction: column; 
+            overflow: hidden; position: relative;
+            padding-top: env(safe-area-inset-top); /* iPhoneのノッチ対策 */
+        }
         
         .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; }
         .settings-btn { background: none; border: none; color: white; font-size: 35px; padding: 10px; cursor: pointer; }
@@ -25,8 +34,7 @@
         .line-name { font-size: 32px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; width: 95%; overflow: hidden; }
         .line-code { font-size: 55px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; }
 
-        #scan-step-label { font-size: 20px; font-weight: bold; color: #666; margin-bottom: 8px; background: #e0e0eb; padding: 4px 20px; border-radius: 12px; border: 1px solid #ccc; position: relative; }
-        #verified-msg { position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 14px; color: var(--ok-blue); font-weight: bold; white-space: nowrap; opacity: 0; transition: 0.3s; }
+        #scan-step-label { font-size: 20px; font-weight: bold; color: #666; margin-bottom: 8px; background: #e0e0eb; padding: 4px 20px; border-radius: 12px; border: 1px solid #ccc; }
 
         #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; display: flex; align-items: center; justify-content: center; }
         .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
@@ -44,15 +52,19 @@
         .animate-symbol { animation: floatUp 0.8s ease-out forwards; }
 
         /* 設定・リスト画面 */
-        #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: none; flex-direction: column; padding: 20px; }
+        #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: none; flex-direction: column; padding: 20px; padding-top: 40px; }
         .setup-card { background: #fff; padding: 20px; border-radius: 25px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-bottom: 20px; flex-shrink: 0; }
         
         .list-container { flex-grow: 1; overflow-y: auto; background: #fff; border-radius: 20px; box-shadow: var(--shadow); padding: 10px; }
         .list-title { font-size: 24px; font-weight: bold; color: var(--purple-accent); text-align: center; margin-bottom: 15px; border-bottom: 2px solid var(--bg); padding-bottom: 10px; }
-        .delivery-list { width: 100%; }
         .list-item { display: flex; justify-content: space-between; align-items: center; padding: 18px; border-bottom: 1px solid #eee; font-size: 18px; font-weight: bold; cursor: pointer; }
         .list-item.done { background: #f0fff4; color: #2ecc71; }
         .list-item .unit-count { font-size: 15px; color: #666; background: #e0e0e0; padding: 3px 10px; border-radius: 6px; }
+
+        /* 独自ポップアップ (Alert代わり) */
+        #custom-popup { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .popup-card { background: #fff; padding: 25px; border-radius: 20px; width: 100%; max-width: 320px; text-align: center; }
+        .popup-content { margin: 20px 0; font-size: 18px; line-height: 1.5; white-space: pre-wrap; text-align: left; max-height: 300px; overflow-y: auto; }
 
         .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
         .btn-side { width: 80px; height: 80px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 45px; display: flex; align-items: center; justify-content: center; outline: none; }
@@ -62,6 +74,14 @@
     </style>
 </head>
 <body>
+
+    <div id="custom-popup">
+        <div class="popup-card">
+            <h3 id="popup-title" style="color: var(--purple-accent);">HISTORY</h3>
+            <div id="popup-text" class="popup-content"></div>
+            <button onclick="closePopup()" style="width:100%; padding:12px; background:var(--purple-accent); color:#fff; border:none; border-radius:10px; font-size:18px;">OK</button>
+        </div>
+    </div>
 
     <div id="setup-screen">
         <div class="setup-card">
@@ -89,10 +109,7 @@
     </div>
 
     <div class="header">
-        <div id="scan-step-label">
-            <span id="step-text">STEP 1: 看板スキャン</span>
-            <div id="verified-msg">VERIFIED & RECORDED</div>
-        </div>
+        <div id="scan-step-label">STEP 1: 看板スキャン</div>
         <div id="name-label" class="line-name">データを読み込み中...</div>
         <div id="code-label" class="line-code">000000</div>
     </div>
@@ -128,7 +145,6 @@
             const now = audioCtx.currentTime;
             const g = audioCtx.createGain(); g.connect(audioCtx.destination);
             const o = audioCtx.createOscillator(); o.connect(g);
-
             if (type === 'ok') {
                 o.type = 'triangle'; o.frequency.setValueAtTime(1046, now);
                 o.frequency.exponentialRampToValueAtTime(1318, now + 0.1);
@@ -139,16 +155,19 @@
                 o.frequency.linearRampToValueAtTime(110, now + 0.2);
                 g.gain.setValueAtTime(0.3, now); g.gain.linearRampToValueAtTime(0.01, now + 0.4);
                 o.start(); o.stop(now + 0.4);
-            } else if (type === 'tap') {
+            } else if (type === 'tap' || type === 'start') {
                 o.type = 'sine'; o.frequency.setValueAtTime(1500, now);
                 g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
                 o.start(); o.stop(now + 0.05);
-            } else if (type === 'start') {
-                o.type = 'sine'; o.frequency.setValueAtTime(880, now);
-                g.gain.setValueAtTime(0.1, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                o.start(); o.stop(now + 0.1);
             }
         }
+
+        function showPopup(title, text) {
+            document.getElementById('popup-title').innerText = title;
+            document.getElementById('popup-text').innerText = text;
+            document.getElementById('custom-popup').style.display = "flex";
+        }
+        function closePopup() { document.getElementById('custom-popup').style.display = "none"; }
 
         async function loadDataFromSheet() {
             try {
@@ -166,8 +185,7 @@
                     db[course].push({ n: name, c: code });
                 }
                 if(!myCourse || !db[myCourse]) myCourse = Object.keys(db)[0];
-                updateCourseOptions();
-                ui();
+                updateCourseOptions(); ui();
                 if(!worker) initAI();
             } catch (e) {
                 document.getElementById('name-label').innerText = "読込エラー";
@@ -187,8 +205,7 @@
 
         function openSetup() {
             document.getElementById('setup-screen').style.display = "flex";
-            updateCourseOptions();
-            renderList();
+            updateCourseOptions(); renderList();
         }
 
         function applySettings() {
@@ -201,8 +218,7 @@
         async function initAI() {
             const btn = document.getElementById('scan-main');
             worker = await Tesseract.createWorker();
-            await worker.loadLanguage('eng');
-            await worker.initialize('eng');
+            await worker.loadLanguage('eng'); await worker.initialize('eng');
             await worker.setParameters({ tessedit_char_whitelist: '0123456789', tessedit_pageseg_mode: '7' });
             btn.disabled = false; btn.innerText = "AUTO SCAN"; btn.classList.add('ready');
         }
@@ -219,8 +235,8 @@
                 div.innerHTML = `<span>${isDone ? '✔ ' : ''}${i+1}. ${s.n}</span><span class="unit-count">${myHist.length}台</span>`;
                 div.onclick = () => {
                     playSound('tap');
-                    if(myHist.length === 0) alert("記録なし");
-                    else alert(`【${s.n}】\n納品履歴:\n` + myHist.map(h => `・${h.date} ${h.time}`).join("\n"));
+                    if(myHist.length === 0) showPopup("HISTORY", "納品記録はありません");
+                    else showPopup(s.n, "納品履歴:\n" + myHist.map(h => `・${h.date} ${h.time}`).join("\n"));
                 };
                 listUi.appendChild(div);
             });
@@ -236,7 +252,7 @@
         }
 
         function updateStepLabel() {
-            const label = document.getElementById('step-text');
+            const label = document.getElementById('scan-step-label');
             const guide = document.getElementById('guide');
             if(scanStep === 1) {
                 label.innerText = "STEP 1: 看板スキャン"; label.style.color = "var(--purple-accent)";
@@ -301,25 +317,15 @@
             }
             lastCheckTime = now;
             if(scanStep === 1) {
-                scanStep = 2; playSound('start');
-                if(navigator.vibrate) navigator.vibrate(100);
+                scanStep = 2; playSound('start'); if(navigator.vibrate) navigator.vibrate(100);
                 updateStepLabel();
             } else {
                 saveRecord(targetCode);
                 showVisual(true); playSound('ok');
-                showVerifiedMsg();
                 scanStep = 1; updateStepLabel();
                 if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
-                
-                // シールスキャン完了後、自動でスキャン停止
-                toggleAutoScan(); 
+                toggleAutoScan(); // シールスキャン完了でオート停止
             }
-        }
-
-        function showVerifiedMsg() {
-            const msg = document.getElementById('verified-msg');
-            msg.style.opacity = "1";
-            setTimeout(() => { msg.style.opacity = "0"; }, 2000);
         }
 
         function saveRecord(code) {
