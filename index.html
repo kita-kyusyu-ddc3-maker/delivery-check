@@ -3,142 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v45 - Premium</title>
+    <title>Scanner VIOLET v41</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
-            /* 高級感のあるダークテーマ設定 */
-            --bg-dark: #0a0a12;
-            --card-bg: #161625;
-            --purple-neon: #a29bfe;
-            --purple-main: #6c5ce7;
-            --ok-cyan: #00d2ff;
-            --ng-rose: #ff7675;
-            --text-main: #e0e0e0;
-            --text-dim: #a0a0a0;
-            --shadow-soft: 0 8px 32px rgba(0,0,0,0.5);
-            --border-glass: rgba(255,255,255,0.1);
+            --bg: #f0f0f7;
+            --purple-accent: #6c5ce7;
+            --ok-blue: #3498db;
+            --ng-red: #e74c3c;
+            --shadow: 8px 8px 16px #d1d1d6, -8px -8px 16px #ffffff;
+            --inner: inset 4px 4px 8px #d1d1d6, inset -4px -4px 8px #ffffff;
         }
-
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: #000; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
         
-        body { 
-            background: var(--bg-dark); 
-            color: var(--text-main); 
-            font-family: 'Helvetica Neue', Arial, sans-serif; 
-            height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-            overflow: hidden; 
-        }
-        
-        /* 上部バー */
-        .top-id-bar { 
-            height: 60px; 
-            background: linear-gradient(90deg, #1e1e30, #2d3436);
-            display: flex; align-items: center; justify-content: space-between; 
-            padding: 0 20px; border-bottom: 1px solid var(--border-glass);
-            z-index: 100;
-        }
-        .settings-btn { background: none; border: none; color: var(--purple-neon); font-size: 28px; cursor: pointer; }
-        .course-title { font-size: 22px; font-weight: bold; letter-spacing: 1px; color: var(--purple-neon); }
+        .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; }
+        .settings-btn { background: none; border: none; color: white; font-size: 35px; padding: 10px; cursor: pointer; }
+        .course-title { font-size: 38px; flex-grow: 1; text-align: center; margin-right: 45px; }
 
-        /* メイン表示エリア */
-        .header { 
-            flex: 0.7; display: flex; flex-direction: column; justify-content: center; 
-            align-items: center; padding: 10px; text-align: center;
-        }
-        .line-name { 
-            font-size: 28px; font-weight: 800; color: #fff; 
-            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-            margin-bottom: 5px; height: 1.2em; overflow: hidden;
-        }
-        .line-code { 
-            font-size: 52px; color: var(--ok-cyan); 
-            font-family: 'Courier New', monospace; font-weight: 900; letter-spacing: 6px; 
-        }
+        .header { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; text-align: center; }
+        .line-name { font-size: 32px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; width: 95%; overflow: hidden; }
+        .line-code { font-size: 55px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; }
 
-        /* カウント表示 */
-        .delivery-counter {
-            background: var(--card-bg);
-            padding: 4px 18px; border-radius: 50px;
-            font-size: 16px; color: var(--text-dim);
-            margin-top: 5px; border: 1px solid var(--border-glass);
-        }
-        .delivery-counter b { color: var(--purple-neon); font-size: 20px; }
-
-        /* カメラエリア */
-        #cam-area { height: 22vh; width: 100%; padding: 0 30px; position: relative; }
-        .cam-frame { 
-            width: 100%; height: 100%; border-radius: 20px; overflow: hidden; 
-            border: 2px solid var(--border-glass); position: relative; 
-            box-shadow: var(--shadow-soft); background: #000;
-        }
+        #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; display: flex; align-items: center; justify-content: center; }
+        .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
         #video { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* ガイド枠にアニメーション追加 */
         .guide-rect { 
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-            width: 180px; height: 80px; border: 2px solid rgba(255,255,255,0.3); 
-            border-radius: 10px; pointer-events: none; z-index: 10;
+            width: 180px; height: 80px; border: 4px solid var(--purple-accent); 
+            border-radius: 12px; z-index: 500; cursor: pointer;
+            transition: all 0.3s;
         }
-        .guide-rect.scanning { border-color: var(--purple-neon); box-shadow: 0 0 20px var(--purple-main); animation: pulse 1s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .guide-rect.scanning { border-color: #fff; box-shadow: 0 0 15px var(--purple-accent); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
-        /* 履歴リスト（スクロール可能） */
-        .history-container {
-            flex: 1.2; width: 90%; margin: 10px auto; overflow-y: auto;
-            background: rgba(255,255,255,0.03); border-radius: 15px;
-            padding: 10px; border: 1px solid var(--border-glass);
+        #symbol-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 200px; font-weight: bold; pointer-events: none; z-index: 5000; opacity: 0; }
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translate(-50%, 20%) scale(0.5); }
+            30% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -120%) scale(1); }
         }
-        .history-item { 
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); 
-            font-size: 14px;
-        }
-        .hist-count { color: var(--purple-neon); font-weight: bold; width: 60px; }
-        .hist-time { color: var(--text-dim); font-family: monospace; }
+        .animate-symbol { animation: floatUp 0.8s ease-out forwards; }
 
-        /* フッター */
-        .footer { 
-            height: 22vh; display: flex; align-items: center; justify-content: space-around; 
-            padding-bottom: env(safe-area-inset-bottom);
-        }
-        .btn-side { 
-            width: 70px; height: 70px; border-radius: 20px; border: 1px solid var(--border-glass);
-            background: var(--card-bg); color: #fff; font-size: 30px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3); outline: none;
-        }
-        #scan-main { 
-            width: 130px; height: 130px; border-radius: 50%; border: none; 
-            background: linear-gradient(135deg, var(--purple-main), #4834d4);
-            color: #fff; font-size: 20px; font-weight: bold;
-            box-shadow: 0 0 20px rgba(108, 92, 231, 0.4);
-            transition: 0.2s; outline: none;
-        }
-        #scan-main.active { filter: hue-rotate(90deg); transform: scale(0.95); box-shadow: 0 0 40px var(--ok-cyan); }
-        #scan-main:disabled { background: #333; box-shadow: none; color: #666; }
+        #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .setup-card { background: #fff; padding: 25px; border-radius: 25px; width: 100%; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+        .setup-card p { font-weight: bold; color: #666; margin-top: 10px; }
+        select { width: 100%; padding: 15px; font-size: 24px; margin: 5px 0 20px; border: 2px solid #ddd; border-radius: 12px; outline: none; }
 
-        /* 判定アニメーション */
-        #symbol-overlay { position: fixed; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 250px; pointer-events: none; z-index: 5000; opacity: 0; }
-        .animate-symbol { animation: floatUp 0.7s ease-out forwards; }
-        @keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, 0%) scale(0.5); } 40% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } 100% { opacity: 0; transform: translate(-50%, -100%) scale(1); } }
+        #manual-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; flex-direction: column; align-items: center; justify-content: center; }
+        .manual-card { background: #fff; padding: 20px; border-radius: 20px; width: 280px; text-align: center; }
+        #manual-input { width: 100%; padding: 10px; font-size: 40px; text-align: center; border-radius: 10px; border: 2px solid var(--purple-accent); outline: none; margin-bottom: 15px; }
 
-        /* 設定画面 */
-        #setup-screen { position: fixed; inset: 0; background: var(--bg-dark); z-index: 9000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 30px; }
-        .setup-card { background: var(--card-bg); padding: 30px; border-radius: 30px; width: 100%; max-width: 400px; border: 1px solid var(--border-glass); text-align: center; }
-        select { width: 100%; padding: 18px; font-size: 22px; margin: 15px 0; background: #000; color: #fff; border: 1px solid var(--purple-main); border-radius: 15px; outline: none; }
+        .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
+        .btn-side { width: 80px; height: 80px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 45px; display: flex; align-items: center; justify-content: center; }
+        #scan-main { width: 155px; height: 155px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 22px; font-weight: 900; outline: none; transition: 0.3s; }
+        #scan-main.ready { background: var(--bg); color: var(--purple-accent); font-size: 30px; }
+        #scan-main.active { background: var(--purple-accent); color: #fff; border: 5px solid #fff; }
     </style>
 </head>
 <body>
 
     <div id="setup-screen">
         <div class="setup-card">
-            <h2 style="color: var(--purple-neon); margin-bottom: 20px;">SYSTEM CONFIG</h2>
-            <p style="font-size: 14px; color: var(--text-dim);">SELECT SHIFT & COURSE</p>
+            <h2 style="text-align: center; margin-bottom: 20px;">配送設定</h2>
+            <p>1. 便を選択</p>
             <select id="shift-in" onchange="updateCourseOptions()">
                 <option value="1">1便</option><option value="2">2便</option><option value="3">3便</option>
             </select>
+            <p>2. コースを選択</p>
             <select id="course-in"></select>
-            <button style="width:100%; height:70px; background:var(--purple-main); color:white; border:none; border-radius:15px; font-size:24px; font-weight:bold; margin-top: 20px;" onclick="applySettings()">APPLY</button>
+            <button style="width:100%; height:65px; background:#6c5ce7; color:white; border:none; border-radius:12px; font-size:26px; font-weight:bold;" onclick="applySettings()">設定を確定</button>
+        </div>
+    </div>
+
+    <div id="manual-box">
+        <div class="manual-card">
+            <p style="margin-bottom:10px;">直接入力</p>
+            <input type="tel" id="manual-input" maxlength="6" placeholder="000000">
+            <button style="width:100%; padding:10px; background:#999; color:#fff; border:none; border-radius:8px;" onclick="closeManual()">戻る</button>
         </div>
     </div>
 
@@ -146,37 +90,31 @@
     
     <div class="top-id-bar">
         <button class="settings-btn" onclick="openSetup()">⚙</button>
-        <div id="top-id-display" class="course-title">VIOLET v45</div>
-        <div style="width: 30px;"></div>
+        <div id="top-id-display" class="course-title">--- - --</div>
     </div>
 
     <div class="header">
-        <div id="name-label" class="line-name">LOADING...</div>
+        <div id="name-label" class="line-name">店舗名</div>
         <div id="code-label" class="line-code">000000</div>
-        <div class="delivery-counter">本日納品数: <b id="count-label">0</b> 台</div>
     </div>
 
     <div id="cam-area">
         <div class="cam-frame">
             <video id="video" autoplay playsinline muted></video>
-            <div id="guide" class="guide-rect"></div>
+            <div id="guide" class="guide-rect" onclick="openManual()"></div>
         </div>
-    </div>
-
-    <div class="history-container" id="history-list">
-        <div style="text-align:center; padding-top:20px; color:var(--text-dim);">NO SCAN DATA</div>
     </div>
     
     <div class="footer">
         <button class="btn-side" onclick="stepShop(-1)">◀</button>
-        <button id="scan-main" disabled onclick="toggleAutoScan()">WAIT...</button>
+        <button id="scan-main" disabled onclick="toggleAutoScan()">待機中</button>
         <button class="btn-side" onclick="stepShop(1)">▶</button>
     </div>
 
     <script>
         const db = {}; 
         function genData() {
-            // --- 1便 (101-134) ---
+            // データ部分は省略せず、元の350件をそのまま保持
             db[101] = [{n:"福岡東医療センター",c:"267737"},{n:"NHO小倉医療センター",c:"386293"},{n:"北九州総合病院",c:"267720"},{n:"JCHO九州病院",c:"230421"},{n:"八幡東鳴水三丁目",c:"298844"},{n:"S宗像水光会総合病院",c:"241927"}];
             db[102] = [{n:"福岡県庁",c:"357200"},{n:"福津中央一丁目",c:"128830"},{n:"東福間駅前",c:"226046"},{n:"宗像田熊一丁目",c:"214468"},{n:"くりえいと宗像",c:"145891"},{n:"玄海瀬戸",c:"345070"}];
             db[103] = [{n:"九州大学病院",c:"368450"},{n:"宗像若木台",c:"117989"},{n:"宗像日の里五丁目",c:"165050"},{n:"宗像曲",c:"191490"},{n:"宗像赤間駅前",c:"368266"}];
@@ -212,7 +150,6 @@
             db[133] = [{n:"穂波町",c:"165267"},{n:"西鉄飯塚バスターミナル",c:"242157"},{n:"飯塚潤野",c:"372931"},{n:"飯塚横田",c:"230088"},{n:"飯塚東川津",c:"226371"}];
             db[134] = [{n:"宮若竹原",c:"247841"},{n:"福岡宮若長井鶴",c:"235921"},{n:"宮若龍徳",c:"275168"},{n:"宮若上有木",c:"173226"},{n:"若宮インター",c:"095851"}];
 
-            // --- 2便 (201-234) ---
             db[201] = [{n:"宗像石丸三丁目",c:"241850"},{n:"福津花見が丘一丁目",c:"200331"},{n:"古賀舞の里",c:"165356"},{n:"古賀太郎丸",c:"076858"},{n:"舞松原",c:"165155"}];
             db[202] = [{n:"福岡若宮五丁目",c:"145980"},{n:"南福岡駅前",c:"080230"},{n:"麦野四丁目",c:"092781"},{n:"博多上呉服町",c:"381290"}];
             db[203] = [{n:"比恵町",c:"134829"},{n:"筑紫通東光寺",c:"091445"},{n:"博多那南六丁目",c:"145365"},{n:"博多美野島二丁目",c:"067033"},{n:"オリエンタルホテル福岡",c:"048320"}];
@@ -247,17 +184,14 @@
             db[232] = [{n:"博多駅明治公園",c:"154690"},{n:"博多住吉五丁目",c:"298761"},{n:"福岡下川端町",c:"242246"},{n:"上川端町",c:"134597"},{n:"博多駅前",c:"373103"}];
             db[233] = [{n:"博多駅筑紫口",c:"145804"},{n:"春日原北町",c:"154542"},{n:"博多南駅前",c:"357624"},{n:"太宰府吉松三丁目",c:"282984"}];
             db[234] = [{n:"西鉄白木原駅",c:"381574"},{n:"福岡博多駅前二丁目",c:"191313"},{n:"吉塚三丁目",c:"230378"},{n:"吉塚五丁目",c:"134404"},{n:"吉塚本町",c:"176845"},{n:"中洲一丁目",c:"091468"}];
-
-            // --- 3便 (301) ---
             db[301] = [{n:"中洲二丁目",c:"176673"},{n:"中洲であい橋通り",c:"372730"}];
         }
 
-        let myCourse = localStorage.getItem('v45_course_id') || 101;
+        let myCourse = localStorage.getItem('v40_course_id') || 101;
         let idx = 0;
         let audioCtx = null;
         let worker = null;
-        let isAutoScan = false;
-        let scanHistory = JSON.parse(localStorage.getItem('v45_history') || '[]');
+        let isAutoScan = false; // 自動スキャンモードの状態
 
         function updateCourseOptions() {
             const shift = document.getElementById('shift-in').value;
@@ -277,49 +211,73 @@
             }
         }
 
-        function openSetup() { 
-            document.getElementById('setup-screen').style.display = "flex"; 
-            updateCourseOptions(); 
-        }
+        function openSetup() { document.getElementById('setup-screen').style.display = "flex"; updateCourseOptions(); }
 
         async function applySettings() {
             myCourse = document.getElementById('course-in').value;
-            localStorage.setItem('v45_course_id', myCourse);
+            localStorage.setItem('v40_course_id', myCourse);
             document.getElementById('setup-screen').style.display = "none";
             idx = 0;
             ui();
+            initAudio();
             if(!worker) initAI();
+        }
+
+        function initAudio() {
+            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
 
         async function initAI() {
             const btn = document.getElementById('scan-main');
-            btn.innerText = "INITIALIZING...";
             worker = await Tesseract.createWorker();
             await worker.loadLanguage('eng');
             await worker.initialize('eng');
             await worker.setParameters({ 
                 tessedit_char_whitelist: '0123456789',
-                tessedit_pageseg_mode: '7'
+                tessedit_pageseg_mode: '7' // 1行として認識
             });
             btn.disabled = false;
             btn.innerText = "AUTO SCAN";
+            btn.classList.add('ready');
         }
 
         function playSound(type) {
-            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if(!audioCtx) return;
             if(audioCtx.state === 'suspended') audioCtx.resume();
             const now = audioCtx.currentTime;
             const g = audioCtx.createGain(); g.connect(audioCtx.destination);
             const o = audioCtx.createOscillator(); o.connect(g);
+
             if(type === 'ok') {
-                o.frequency.setValueAtTime(880, now);
-                o.frequency.exponentialRampToValueAtTime(1760, now + 0.1);
-                g.gain.setValueAtTime(0.15, now); g.gain.linearRampToValueAtTime(0, now + 0.3);
-            } else {
+                o.type = 'triangle';
+                o.frequency.setValueAtTime(1046.50, now);
+                o.frequency.exponentialRampToValueAtTime(1318.51, now + 0.1);
+                g.gain.setValueAtTime(0.2, now);
+                g.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                o.start(); o.stop(now + 0.3);
+            } else if(type === 'ng') {
+                o.type = 'sine';
                 o.frequency.setValueAtTime(180, now);
-                g.gain.setValueAtTime(0.2, now); g.gain.linearRampToValueAtTime(0, now + 0.4);
+                o.frequency.linearRampToValueAtTime(140, now + 0.2);
+                g.gain.setValueAtTime(0.3, now);
+                g.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                o.start(); o.stop(now + 0.4);
+            } else if(type === 'tap' || type === 'start') {
+                o.type = 'sine';
+                o.frequency.setValueAtTime(1500, now);
+                g.gain.setValueAtTime(0.05, now);
+                g.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                o.start(); o.stop(now + 0.05);
             }
-            o.start(); o.stop(now + 0.4);
+        }
+
+        function showVisualEffect(isOk) {
+            const overlay = document.getElementById('symbol-overlay');
+            overlay.innerText = isOk ? "○" : "×";
+            overlay.style.color = isOk ? "var(--ok-blue)" : "var(--ng-red)";
+            overlay.classList.remove('animate-symbol');
+            void overlay.offsetWidth;
+            overlay.classList.add('animate-symbol');
         }
 
         function ui() {
@@ -328,24 +286,6 @@
             document.getElementById('top-id-display').innerText = `${myCourse} - ${String(idx + 1).padStart(2, '0')}`;
             document.getElementById('code-label').innerText = item.c;
             document.getElementById('name-label').innerText = item.n;
-            
-            // 現在の店舗の履歴を取得
-            const myHistory = scanHistory.filter(h => h.code === item.c);
-            document.getElementById('count-label').innerText = myHistory.length;
-            
-            // 履歴リストの更新
-            const listEl = document.getElementById('history-list');
-            if(myHistory.length === 0) {
-                listEl.innerHTML = '<div style="text-align:center; padding-top:20px; color:var(--text-dim);">NO SCAN DATA</div>';
-            } else {
-                listEl.innerHTML = '';
-                [...myHistory].reverse().forEach(h => {
-                    const div = document.createElement('div');
-                    div.className = 'history-item';
-                    div.innerHTML = `<span class="hist-count">台車 ${h.count}</span><span class="hist-time">${h.time}</span>`;
-                    listEl.appendChild(div);
-                });
-            }
         }
 
         function stepShop(d) {
@@ -357,18 +297,32 @@
         async function cam() {
             const v = document.getElementById('video');
             try {
-                const s = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment", width: { ideal: 1280 } } 
-                });
+                const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } });
                 v.srcObject = s;
-            } catch(e) { alert("カメラの使用を許可してください"); }
+            } catch(e) { alert("カメラを許可してください"); }
         }
 
+        function openManual() {
+            playSound('tap');
+            document.getElementById('manual-box').style.display = "flex";
+            const input = document.getElementById('manual-input');
+            input.value = "";
+            setTimeout(() => input.focus(), 300);
+        }
+        function closeManual() { document.getElementById('manual-box').style.display = "none"; }
+        
+        document.getElementById('manual-input').addEventListener('input', function(e){
+            playSound('tap');
+            if(this.value.length === 6) { checkResult(this.value); setTimeout(closeManual, 500); }
+        });
+
+        // 1 & 2 追加：自動スキャン切り替え
         function toggleAutoScan() {
             isAutoScan = !isAutoScan;
             const btn = document.getElementById('scan-main');
             const guide = document.getElementById('guide');
             if(isAutoScan) {
+                playSound('start');
                 btn.innerText = "STOP";
                 btn.classList.add('active');
                 guide.classList.add('scanning');
@@ -383,88 +337,63 @@
         async function runScannerLoop() {
             if(!isAutoScan) return;
             await runOCR();
-            setTimeout(runScannerLoop, 300); 
+            // 認識完了後、少し待機して再度スキャン
+            setTimeout(runScannerLoop, 400); 
         }
 
         async function runOCR() {
             const v = document.getElementById('video');
             const canvas = document.createElement('canvas');
             const scale = v.videoWidth / v.clientWidth;
-            canvas.width = 200; canvas.height = 100;
+            canvas.width = 200; canvas.height = 100; // ガイド枠より少し大きめに切り出し
             const sx = (v.videoWidth - 200 * scale) / 2;
             const sy = (v.videoHeight - 100 * scale) / 2;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(v, sx, sy, 200 * scale, 100 * scale, 0, 0, 200, 100);
 
+            // 1. 画像前処理（グレースケール & 簡易二値化）
             let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             let data = imageData.data;
             for (let i = 0; i < data.length; i += 4) {
                 let gray = data[i] * 0.3 + data[i + 1] * 0.59 + data[i + 2] * 0.11;
-                let val = (gray > 125) ? 255 : 0; 
-                data[i] = data[i + 1] = data[i + 2] = val;
+                let v = (gray > 128) ? 255 : 0; // しきい値128で白黒化
+                data[i] = data[i + 1] = data[i + 2] = v;
             }
             ctx.putImageData(imageData, 0, 0);
 
             try {
                 const res = await worker.recognize(canvas);
                 const txt = res.data.text.replace(/[^0-9]/g, '');
-                if(txt.length >= 6) checkResult(txt);
-            } catch(e) {}
+                if(txt.length >= 4) { // 4桁以上の数字が見えたら判定へ
+                    checkResult(txt);
+                }
+            } catch(e) { console.log("OCR Error"); }
         }
 
         let lastCheckTime = 0;
         function checkResult(input) {
+            // 短時間に何度も判定しないようガード
             const now = Date.now();
-            if(now - lastCheckTime < 2500) return; // 連続検知防止
+            if(now - lastCheckTime < 1500) return;
 
             const item = db[myCourse][idx];
-            if(input.includes(item.c)) {
+            const isMatch = input.includes(item.c);
+            
+            if(isMatch) { 
                 lastCheckTime = now;
-                playSound('ok');
-                showVisual(true);
-                
-                // 履歴データの作成
-                const timeStr = new Date().toLocaleTimeString('ja-JP', {
-                    hour:'2-digit', minute:'2-digit', second:'2-digit'
-                });
-                const currentCount = scanHistory.filter(h => h.code === item.c).length + 1;
-                
-                scanHistory.push({ 
-                    code: item.c, 
-                    name: item.n, 
-                    time: timeStr, 
-                    count: currentCount 
-                });
-                
-                // 保存と表示更新
-                localStorage.setItem('v45_history', JSON.stringify(scanHistory));
-                ui(); 
-
+                playSound('ok'); 
+                showVisualEffect(true); 
                 if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
             } else if(input.length === 6) {
-                // 6桁ピッタリで間違っている場合のみNG
+                // 完全に6桁読んで間違っている場合のみNG
                 lastCheckTime = now;
-                playSound('ng');
-                showVisual(false);
+                playSound('ng'); 
+                showVisualEffect(false); 
                 if(navigator.vibrate) navigator.vibrate(400);
             }
         }
 
-        function showVisual(isOk) {
-            const overlay = document.getElementById('symbol-overlay');
-            overlay.innerText = isOk ? "○" : "×";
-            overlay.style.color = isOk ? "var(--ok-cyan)" : "var(--ng-rose)";
-            overlay.classList.remove('animate-symbol');
-            void overlay.offsetWidth;
-            overlay.classList.add('animate-symbol');
-        }
-
-        window.onload = () => { 
-            genData(); 
-            updateCourseOptions(); 
-            cam(); 
-            ui(); 
-        };
+        window.onload = () => { genData(); updateCourseOptions(); cam(); };
     </script>
 </body>
 </html>
