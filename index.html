@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v41-PRO Sheet-Link</title>
+    <title>Scanner VIOLET v42-PRO</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -25,7 +25,8 @@
         .line-name { font-size: 32px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; width: 95%; overflow: hidden; }
         .line-code { font-size: 55px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; }
 
-        #scan-step-label { font-size: 20px; font-weight: bold; color: #666; margin-bottom: 8px; background: #e0e0eb; padding: 4px 20px; border-radius: 12px; border: 1px solid #ccc; }
+        #scan-step-label { font-size: 20px; font-weight: bold; color: #666; margin-bottom: 8px; background: #e0e0eb; padding: 4px 20px; border-radius: 12px; border: 1px solid #ccc; position: relative; }
+        #verified-msg { position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 14px; color: var(--ok-blue); font-weight: bold; white-space: nowrap; opacity: 0; transition: 0.3s; }
 
         #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; display: flex; align-items: center; justify-content: center; }
         .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
@@ -42,16 +43,20 @@
         }
         .animate-symbol { animation: floatUp 0.8s ease-out forwards; }
 
-        #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: none; flex-direction: column; padding: 20px; overflow-y: auto; }
-        .setup-card { background: #fff; padding: 20px; border-radius: 25px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .delivery-list { width: 100%; background: #fff; border-radius: 20px; overflow: hidden; box-shadow: var(--shadow); }
+        /* 設定・リスト画面 */
+        #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: none; flex-direction: column; padding: 20px; }
+        .setup-card { background: #fff; padding: 20px; border-radius: 25px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-bottom: 20px; flex-shrink: 0; }
+        
+        .list-container { flex-grow: 1; overflow-y: auto; background: #fff; border-radius: 20px; box-shadow: var(--shadow); padding: 10px; }
+        .list-title { font-size: 24px; font-weight: bold; color: var(--purple-accent); text-align: center; margin-bottom: 15px; border-bottom: 2px solid var(--bg); padding-bottom: 10px; }
+        .delivery-list { width: 100%; }
         .list-item { display: flex; justify-content: space-between; align-items: center; padding: 18px; border-bottom: 1px solid #eee; font-size: 18px; font-weight: bold; cursor: pointer; }
         .list-item.done { background: #f0fff4; color: #2ecc71; }
         .list-item .unit-count { font-size: 15px; color: #666; background: #e0e0e0; padding: 3px 10px; border-radius: 6px; }
 
         .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
         .btn-side { width: 80px; height: 80px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 45px; display: flex; align-items: center; justify-content: center; outline: none; }
-        #scan-main { width: 155px; height: 155px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 20px; font-weight: 900; outline: none; }
+        #scan-main { width: 155px; height: 155px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 20px; font-weight: 900; outline: none; transition: 0.2s; }
         #scan-main.ready { background: var(--bg); color: var(--purple-accent); font-size: 28px; }
         #scan-main.active { background: var(--purple-accent); color: #fff; box-shadow: var(--inner); }
     </style>
@@ -60,27 +65,34 @@
 
     <div id="setup-screen">
         <div class="setup-card">
-            <h2 style="margin-bottom:15px;">配送設定</h2>
-            <select id="shift-in" onchange="updateCourseOptions()" style="width:100%; padding:15px; font-size:20px; margin-bottom:10px; border-radius:10px; border:1px solid #ccc;">
+            <h2 style="margin-bottom:15px; text-align:center;">配送設定</h2>
+            <select id="shift-in" onchange="updateCourseOptions(); playSound('tap');" style="width:100%; padding:15px; font-size:20px; margin-bottom:10px; border-radius:10px; border:1px solid #ccc;">
                 <option value="1">1便</option><option value="2">2便</option><option value="3">3便</option>
             </select>
-            <select id="course-in" style="width:100%; padding:15px; font-size:20px; margin-bottom:15px; border-radius:10px; border:1px solid #ccc;"></select>
-            <button onclick="applySettings()" style="width:100%; height:60px; background:var(--purple-accent); color:#fff; border:none; border-radius:12px; font-size:20px; font-weight:bold;">設定を確定</button>
+            <select id="course-in" onchange="playSound('tap');" style="width:100%; padding:15px; font-size:20px; margin-bottom:15px; border-radius:10px; border:1px solid #ccc;"></select>
+            <button onclick="applySettings(); playSound('ok');" style="width:100%; height:60px; background:var(--purple-accent); color:#fff; border:none; border-radius:12px; font-size:20px; font-weight:bold;">設定を確定</button>
         </div>
-        <h3 style="margin: 10px 0;">本日の配送順リスト</h3>
-        <div class="delivery-list" id="delivery-list-ui"></div>
-        <button onclick="document.getElementById('setup-screen').style.display='none'" style="margin-top:25px; width:100%; padding:18px; background:#666; color:#fff; border:none; border-radius:12px; font-size:18px;">閉じる</button>
+        
+        <div class="list-container">
+            <div class="list-title">DELIVERY HISTORY</div>
+            <div class="delivery-list" id="delivery-list-ui"></div>
+        </div>
+        
+        <button onclick="document.getElementById('setup-screen').style.display='none'; playSound('tap');" style="margin-top:20px; width:100%; padding:18px; background:#666; color:#fff; border:none; border-radius:12px; font-size:18px; flex-shrink:0;">閉じる</button>
     </div>
 
     <div id="symbol-overlay"></div>
     
     <div class="top-id-bar">
-        <button class="settings-btn" onclick="openSetup()">⚙</button>
-        <div id="top-id-display" class="course-title">VIOLET Link</div>
+        <button class="settings-btn" onclick="openSetup(); playSound('tap');">⚙</button>
+        <div id="top-id-display" class="course-title">VIOLET PRO</div>
     </div>
 
     <div class="header">
-        <div id="scan-step-label">STEP 1: 看板スキャン</div>
+        <div id="scan-step-label">
+            <span id="step-text">STEP 1: 看板スキャン</span>
+            <div id="verified-msg">VERIFIED & RECORDED</div>
+        </div>
         <div id="name-label" class="line-name">データを読み込み中...</div>
         <div id="code-label" class="line-code">000000</div>
     </div>
@@ -93,9 +105,9 @@
     </div>
     
     <div class="footer">
-        <button class="btn-side" onclick="stepShop(-1)">◀</button>
+        <button class="btn-side" onclick="stepShop(-1); playSound('tap');">◀</button>
         <button id="scan-main" disabled onclick="toggleAutoScan()">待機中</button>
-        <button class="btn-side" onclick="stepShop(1)">▶</button>
+        <button class="btn-side" onclick="stepShop(1); playSound('tap');">▶</button>
     </div>
 
     <script>
@@ -108,6 +120,35 @@
         let isAutoScan = false;
         let scanStep = 1; 
         let history = JSON.parse(localStorage.getItem('v41_scan_history') || '{}'); 
+        let audioCtx = null;
+
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const g = audioCtx.createGain(); g.connect(audioCtx.destination);
+            const o = audioCtx.createOscillator(); o.connect(g);
+
+            if (type === 'ok') {
+                o.type = 'triangle'; o.frequency.setValueAtTime(1046, now);
+                o.frequency.exponentialRampToValueAtTime(1318, now + 0.1);
+                g.gain.setValueAtTime(0.2, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                o.start(); o.stop(now + 0.3);
+            } else if (type === 'ng') {
+                o.type = 'sine'; o.frequency.setValueAtTime(220, now);
+                o.frequency.linearRampToValueAtTime(110, now + 0.2);
+                g.gain.setValueAtTime(0.3, now); g.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                o.start(); o.stop(now + 0.4);
+            } else if (type === 'tap') {
+                o.type = 'sine'; o.frequency.setValueAtTime(1500, now);
+                g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                o.start(); o.stop(now + 0.05);
+            } else if (type === 'start') {
+                o.type = 'sine'; o.frequency.setValueAtTime(880, now);
+                g.gain.setValueAtTime(0.1, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                o.start(); o.stop(now + 0.1);
+            }
+        }
 
         async function loadDataFromSheet() {
             try {
@@ -115,30 +156,21 @@
                 const csvData = await response.text();
                 const lines = csvData.split("\n");
                 db = {}; 
-
                 for (let i = 1; i < lines.length; i++) {
                     const row = lines[i].split(",");
                     if (row.length < 3) continue;
-                    
                     const course = row[0].trim();
                     const name = row[1].trim();
                     const code = row[2].trim().replace(/"/g, "").replace(/\r/g, "");
-
                     if (!db[course]) db[course] = [];
                     db[course].push({ n: name, c: code });
                 }
-                
-                // コースが未設定の場合は最初のコースを選択
-                if(!myCourse || !db[myCourse]) {
-                    myCourse = Object.keys(db)[0];
-                }
-
+                if(!myCourse || !db[myCourse]) myCourse = Object.keys(db)[0];
                 updateCourseOptions();
                 ui();
                 if(!worker) initAI();
             } catch (e) {
                 document.getElementById('name-label').innerText = "読込エラー";
-                alert("シートの読み込みに失敗しました。URLとネット接続を確認してください。");
             }
         }
 
@@ -146,15 +178,10 @@
             const shift = document.getElementById('shift-in').value;
             const menu = document.getElementById('course-in');
             menu.innerHTML = "";
-            
-            // 便番号（1,2,3）で始まるコースをフィルタリング
             const courses = Object.keys(db).sort().filter(c => c.startsWith(shift));
-            
             courses.forEach(c => {
-                let o = document.createElement("option");
-                o.value = c; o.text = c + "コース";
-                menu.add(o);
-                if(c == myCourse) o.selected = true;
+                let o = document.createElement("option"); o.value = c; o.text = c + "コース";
+                menu.add(o); if(c == myCourse) o.selected = true;
             });
         }
 
@@ -168,8 +195,7 @@
             myCourse = document.getElementById('course-in').value;
             localStorage.setItem('v41_course_id', myCourse);
             document.getElementById('setup-screen').style.display = "none";
-            idx = 0;
-            ui();
+            idx = 0; ui();
         }
 
         async function initAI() {
@@ -178,9 +204,7 @@
             await worker.loadLanguage('eng');
             await worker.initialize('eng');
             await worker.setParameters({ tessedit_char_whitelist: '0123456789', tessedit_pageseg_mode: '7' });
-            btn.disabled = false;
-            btn.innerText = "AUTO SCAN";
-            btn.classList.add('ready');
+            btn.disabled = false; btn.innerText = "AUTO SCAN"; btn.classList.add('ready');
         }
 
         function renderList() {
@@ -194,8 +218,9 @@
                 div.className = `list-item ${isDone ? 'done' : ''}`;
                 div.innerHTML = `<span>${isDone ? '✔ ' : ''}${i+1}. ${s.n}</span><span class="unit-count">${myHist.length}台</span>`;
                 div.onclick = () => {
+                    playSound('tap');
                     if(myHist.length === 0) alert("記録なし");
-                    else alert(`${s.n}\n履歴:\n` + myHist.map(h => `・${h.date} ${h.time}`).join("\n"));
+                    else alert(`【${s.n}】\n納品履歴:\n` + myHist.map(h => `・${h.date} ${h.time}`).join("\n"));
                 };
                 listUi.appendChild(div);
             });
@@ -211,15 +236,13 @@
         }
 
         function updateStepLabel() {
-            const label = document.getElementById('scan-step-label');
+            const label = document.getElementById('step-text');
             const guide = document.getElementById('guide');
             if(scanStep === 1) {
-                label.innerText = "STEP 1: 看板スキャン";
-                label.style.color = "var(--purple-accent)";
+                label.innerText = "STEP 1: 看板スキャン"; label.style.color = "var(--purple-accent)";
                 guide.classList.remove('step2');
             } else {
-                label.innerText = "STEP 2: シールスキャン";
-                label.style.color = "#ff9f43";
+                label.innerText = "STEP 2: シールスキャン"; label.style.color = "#ff9f43";
                 guide.classList.add('step2');
             }
         }
@@ -227,20 +250,17 @@
         function stepShop(d) {
             const list = db[myCourse];
             idx = Math.max(0, Math.min(list.length - 1, idx + d));
-            scanStep = 1; 
-            ui();
+            scanStep = 1; ui();
         }
 
         function toggleAutoScan() {
             isAutoScan = !isAutoScan;
             const btn = document.getElementById('scan-main');
             if(isAutoScan) {
-                btn.innerText = "STOP";
-                btn.classList.add('active');
+                playSound('start'); btn.innerText = "STOP"; btn.classList.add('active');
                 runScannerLoop();
             } else {
-                btn.innerText = "AUTO SCAN";
-                btn.classList.remove('active');
+                playSound('tap'); btn.innerText = "AUTO SCAN"; btn.classList.remove('active');
             }
         }
 
@@ -267,7 +287,7 @@
                 const txt = res.data.text.replace(/[^0-9]/g, '');
                 if(txt.length >= 6) checkMatch(txt);
             } catch(e) {}
-            setTimeout(runScannerLoop, 300);
+            if (isAutoScan) setTimeout(runScannerLoop, 300);
         }
 
         let lastCheckTime = 0;
@@ -276,21 +296,30 @@
             if(now - lastCheckTime < 1800) return;
             const targetCode = db[myCourse][idx].c;
             if(!input.includes(targetCode)) {
-                if(input.length === 6) { lastCheckTime = now; showVisual(false); if(navigator.vibrate) navigator.vibrate(400); }
+                if(input.length === 6) { lastCheckTime = now; showVisual(false); playSound('ng'); if(navigator.vibrate) navigator.vibrate(400); }
                 return;
             }
             lastCheckTime = now;
             if(scanStep === 1) {
-                scanStep = 2;
+                scanStep = 2; playSound('start');
                 if(navigator.vibrate) navigator.vibrate(100);
                 updateStepLabel();
             } else {
                 saveRecord(targetCode);
-                showVisual(true);
-                scanStep = 1;
-                updateStepLabel();
+                showVisual(true); playSound('ok');
+                showVerifiedMsg();
+                scanStep = 1; updateStepLabel();
                 if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                
+                // シールスキャン完了後、自動でスキャン停止
+                toggleAutoScan(); 
             }
+        }
+
+        function showVerifiedMsg() {
+            const msg = document.getElementById('verified-msg');
+            msg.style.opacity = "1";
+            setTimeout(() => { msg.style.opacity = "0"; }, 2000);
         }
 
         function saveRecord(code) {
