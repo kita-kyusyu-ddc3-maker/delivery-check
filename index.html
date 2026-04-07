@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v46.1</title>
+    <title>Scanner VIOLET v46.3</title>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="manifest" href="data:application/manifest+json,{'display':'standalone','name':'VIOLET PRO'}">
@@ -90,9 +90,9 @@
         </div>
 
         <div class="history-tabs">
-            <button class="tab-btn active" id="tab-0" onclick="changeTab(0)">今便</button>
-            <button class="tab-btn" id="tab-1" onclick="changeTab(1)">前回</button>
-            <button class="tab-btn" id="tab-2" onclick="changeTab(2)">前々回</button>
+            <button class="tab-btn active" id="tab-0" onclick="changeTab(0)">-</button>
+            <button class="tab-btn" id="tab-1" onclick="changeTab(1)">-</button>
+            <button class="tab-btn" id="tab-2" onclick="changeTab(2)">-</button>
         </div>
         <div class="list-container" id="history-container">
             <div class="delivery-list" id="delivery-list-ui"></div>
@@ -224,7 +224,21 @@
         function openSetup() {
             document.getElementById('setup-screen').style.display = "flex";
             updateCourseOptions();
+            updateTabLabels();
             changeTab(0);
+        }
+
+        function updateTabLabels() {
+            for(let i=0; i<3; i++) {
+                const btn = document.getElementById(`tab-${i}`);
+                const entry = historyData[i];
+                if(entry) {
+                    const d = new Date(entry.id);
+                    btn.innerText = `${d.getMonth()+1}/${d.getDate()}`;
+                } else {
+                    btn.innerText = "-/-";
+                }
+            }
         }
 
         function changeTab(day) {
@@ -256,7 +270,7 @@
             listUi.innerHTML = "";
             
             const entry = historyData[viewDayOffset];
-            if(!entry) { listUi.innerHTML = "記録なし"; return; }
+            if(!entry) { listUi.innerHTML = "<div style='text-align:center; padding:20px; color:#999;'>記録なし</div>"; return; }
 
             const shops = db[entry.course] || [];
             
@@ -267,13 +281,17 @@
 
                 const div = document.createElement('div');
                 div.className = `list-item ${hasScan ? 'done' : (isPassed ? 'passed' : '')}`;
-                div.innerHTML = `<span>${(hasScan || isPassed) ? '✔ ' : ''}${i+1}. ${s.n}</span><span style='font-size:15px; color:#666;'>${hasScan ? myShopHist.length + '台' : (isPassed ? '通過' : '-')}</span>`;
+                
+                const statusMarker = (hasScan || isPassed) ? '✔' : '-';
+                const unitText = hasScan ? myShopHist.length + '台' : statusMarker;
+
+                div.innerHTML = `<span>✔ ${i+1}. ${s.n}</span><span style='font-size:15px; color:#666;'>${unitText}</span>`;
                 div.onclick = () => {
                     playSound('tap');
                     if(hasScan) {
-                        // 最初のスキャン時間を元に日付を取得
-                        const firstDate = myShopHist[0].date || "-/-";
-                        showPopup(s.n, `納品日: ${firstDate}\n履歴:\n` + myShopHist.map(h => `・${h.time}`).join("\n"));
+                        const d = new Date(entry.id);
+                        const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
+                        showPopup(s.n, `納品日: ${dateStr}\n履歴:\n` + myShopHist.map(h => `・${h.time}`).join("\n"));
                     }
                     else if(isPassed) showPopup(s.n, `スキャンなしで通過しました`);
                 };
@@ -369,12 +387,10 @@
 
         function saveRecord(code) {
             const cycle = getCurrentCycle();
-            const now = new Date();
-            const dateStr = `${now.getMonth()+1}/${now.getDate()}`;
-            const timeStr = now.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
+            const timeStr = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
             
             if(!cycle.shops[code]) cycle.shops[code] = [];
-            cycle.shops[code].push({ time: timeStr, date: dateStr });
+            cycle.shops[code].push({ time: timeStr });
             saveHistory();
             ui();
         }
