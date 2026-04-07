@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v41</title>
+    <title>Scanner VIOLET v41-PRO</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -25,19 +25,14 @@
         .line-name { font-size: 32px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; width: 95%; overflow: hidden; }
         .line-code { font-size: 55px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; }
 
+        #scan-step-label { font-size: 20px; font-weight: bold; color: #666; margin-bottom: 8px; background: #e0e0eb; padding: 4px 20px; border-radius: 12px; border: 1px solid #ccc; }
+
         #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; display: flex; align-items: center; justify-content: center; }
         .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
         #video { width: 100%; height: 100%; object-fit: cover; }
         
-        /* ガイド枠にアニメーション追加 */
-        .guide-rect { 
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-            width: 180px; height: 80px; border: 4px solid var(--purple-accent); 
-            border-radius: 12px; z-index: 500; cursor: pointer;
-            transition: all 0.3s;
-        }
-        .guide-rect.scanning { border-color: #fff; box-shadow: 0 0 15px var(--purple-accent); animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 80px; border: 4px solid var(--purple-accent); border-radius: 12px; z-index: 500; transition: 0.3s; }
+        .guide-rect.step2 { border-color: #ff9f43; }
 
         #symbol-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 200px; font-weight: bold; pointer-events: none; z-index: 5000; opacity: 0; }
         @keyframes floatUp {
@@ -47,43 +42,34 @@
         }
         .animate-symbol { animation: floatUp 0.8s ease-out forwards; }
 
-        #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .setup-card { background: #fff; padding: 25px; border-radius: 25px; width: 100%; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-        .setup-card p { font-weight: bold; color: #666; margin-top: 10px; }
-        select { width: 100%; padding: 15px; font-size: 24px; margin: 5px 0 20px; border: 2px solid #ddd; border-radius: 12px; outline: none; }
-
-        #manual-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; flex-direction: column; align-items: center; justify-content: center; }
-        .manual-card { background: #fff; padding: 20px; border-radius: 20px; width: 280px; text-align: center; }
-        #manual-input { width: 100%; padding: 10px; font-size: 40px; text-align: center; border-radius: 10px; border: 2px solid var(--purple-accent); outline: none; margin-bottom: 15px; }
+        #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: none; flex-direction: column; padding: 20px; overflow-y: auto; }
+        .setup-card { background: #fff; padding: 20px; border-radius: 25px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .delivery-list { width: 100%; background: #fff; border-radius: 20px; overflow: hidden; box-shadow: var(--shadow); }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 18px; border-bottom: 1px solid #eee; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .list-item.done { background: #f0fff4; color: #2ecc71; }
+        .list-item .unit-count { font-size: 15px; color: #666; background: #e0e0e0; padding: 3px 10px; border-radius: 6px; }
 
         .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
-        .btn-side { width: 80px; height: 80px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 45px; display: flex; align-items: center; justify-content: center; }
-        #scan-main { width: 155px; height: 155px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 22px; font-weight: 900; outline: none; transition: 0.3s; }
-        #scan-main.ready { background: var(--bg); color: var(--purple-accent); font-size: 30px; }
-        #scan-main.active { background: var(--purple-accent); color: #fff; border: 5px solid #fff; }
+        .btn-side { width: 80px; height: 80px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 45px; display: flex; align-items: center; justify-content: center; outline: none; }
+        #scan-main { width: 155px; height: 155px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 20px; font-weight: 900; outline: none; }
+        #scan-main.ready { background: var(--bg); color: var(--purple-accent); font-size: 28px; }
+        #scan-main.active { background: var(--purple-accent); color: #fff; box-shadow: var(--inner); }
     </style>
 </head>
 <body>
 
     <div id="setup-screen">
         <div class="setup-card">
-            <h2 style="text-align: center; margin-bottom: 20px;">配送設定</h2>
-            <p>1. 便を選択</p>
-            <select id="shift-in" onchange="updateCourseOptions()">
+            <h2 style="margin-bottom:15px;">配送設定</h2>
+            <select id="shift-in" onchange="updateCourseOptions()" style="width:100%; padding:15px; font-size:20px; margin-bottom:10px; border-radius:10px; border:1px solid #ccc;">
                 <option value="1">1便</option><option value="2">2便</option><option value="3">3便</option>
             </select>
-            <p>2. コースを選択</p>
-            <select id="course-in"></select>
-            <button style="width:100%; height:65px; background:#6c5ce7; color:white; border:none; border-radius:12px; font-size:26px; font-weight:bold;" onclick="applySettings()">設定を確定</button>
+            <select id="course-in" style="width:100%; padding:15px; font-size:20px; margin-bottom:15px; border-radius:10px; border:1px solid #ccc;"></select>
+            <button onclick="applySettings()" style="width:100%; height:60px; background:var(--purple-accent); color:#fff; border:none; border-radius:12px; font-size:20px; font-weight:bold;">設定を確定</button>
         </div>
-    </div>
-
-    <div id="manual-box">
-        <div class="manual-card">
-            <p style="margin-bottom:10px;">直接入力</p>
-            <input type="tel" id="manual-input" maxlength="6" placeholder="000000">
-            <button style="width:100%; padding:10px; background:#999; color:#fff; border:none; border-radius:8px;" onclick="closeManual()">戻る</button>
-        </div>
+        <h3 style="margin: 10px 0;">本日の配送順リスト</h3>
+        <div class="delivery-list" id="delivery-list-ui"></div>
+        <button onclick="document.getElementById('setup-screen').style.display='none'" style="margin-top:25px; width:100%; padding:18px; background:#666; color:#fff; border:none; border-radius:12px; font-size:18px;">閉じる</button>
     </div>
 
     <div id="symbol-overlay"></div>
@@ -94,6 +80,7 @@
     </div>
 
     <div class="header">
+        <div id="scan-step-label">STEP 1: 看板スキャン</div>
         <div id="name-label" class="line-name">店舗名</div>
         <div id="code-label" class="line-code">000000</div>
     </div>
@@ -101,7 +88,7 @@
     <div id="cam-area">
         <div class="cam-frame">
             <video id="video" autoplay playsinline muted></video>
-            <div id="guide" class="guide-rect" onclick="openManual()"></div>
+            <div id="guide" class="guide-rect"></div>
         </div>
     </div>
     
@@ -114,7 +101,7 @@
     <script>
         const db = {}; 
         function genData() {
-            // データ部分は省略せず、元の350件をそのまま保持
+            // --- 1便 ---
             db[101] = [{n:"福岡東医療センター",c:"267737"},{n:"NHO小倉医療センター",c:"386293"},{n:"北九州総合病院",c:"267720"},{n:"JCHO九州病院",c:"230421"},{n:"八幡東鳴水三丁目",c:"298844"},{n:"S宗像水光会総合病院",c:"241927"}];
             db[102] = [{n:"福岡県庁",c:"357200"},{n:"福津中央一丁目",c:"128830"},{n:"東福間駅前",c:"226046"},{n:"宗像田熊一丁目",c:"214468"},{n:"くりえいと宗像",c:"145891"},{n:"玄海瀬戸",c:"345070"}];
             db[103] = [{n:"九州大学病院",c:"368450"},{n:"宗像若木台",c:"117989"},{n:"宗像日の里五丁目",c:"165050"},{n:"宗像曲",c:"191490"},{n:"宗像赤間駅前",c:"368266"}];
@@ -150,6 +137,7 @@
             db[133] = [{n:"穂波町",c:"165267"},{n:"西鉄飯塚バスターミナル",c:"242157"},{n:"飯塚潤野",c:"372931"},{n:"飯塚横田",c:"230088"},{n:"飯塚東川津",c:"226371"}];
             db[134] = [{n:"宮若竹原",c:"247841"},{n:"福岡宮若長井鶴",c:"235921"},{n:"宮若龍徳",c:"275168"},{n:"宮若上有木",c:"173226"},{n:"若宮インター",c:"095851"}];
 
+            // --- 2便 ---
             db[201] = [{n:"宗像石丸三丁目",c:"241850"},{n:"福津花見が丘一丁目",c:"200331"},{n:"古賀舞の里",c:"165356"},{n:"古賀太郎丸",c:"076858"},{n:"舞松原",c:"165155"}];
             db[202] = [{n:"福岡若宮五丁目",c:"145980"},{n:"南福岡駅前",c:"080230"},{n:"麦野四丁目",c:"092781"},{n:"博多上呉服町",c:"381290"}];
             db[203] = [{n:"比恵町",c:"134829"},{n:"筑紫通東光寺",c:"091445"},{n:"博多那南六丁目",c:"145365"},{n:"博多美野島二丁目",c:"067033"},{n:"オリエンタルホテル福岡",c:"048320"}];
@@ -184,14 +172,23 @@
             db[232] = [{n:"博多駅明治公園",c:"154690"},{n:"博多住吉五丁目",c:"298761"},{n:"福岡下川端町",c:"242246"},{n:"上川端町",c:"134597"},{n:"博多駅前",c:"373103"}];
             db[233] = [{n:"博多駅筑紫口",c:"145804"},{n:"春日原北町",c:"154542"},{n:"博多南駅前",c:"357624"},{n:"太宰府吉松三丁目",c:"282984"}];
             db[234] = [{n:"西鉄白木原駅",c:"381574"},{n:"福岡博多駅前二丁目",c:"191313"},{n:"吉塚三丁目",c:"230378"},{n:"吉塚五丁目",c:"134404"},{n:"吉塚本町",c:"176845"},{n:"中洲一丁目",c:"091468"}];
+
+            // --- 3便 ---
             db[301] = [{n:"中洲二丁目",c:"176673"},{n:"中洲であい橋通り",c:"372730"}];
         }
 
-        let myCourse = localStorage.getItem('v40_course_id') || 101;
+        let myCourse = localStorage.getItem('v41_course_id') || 101;
         let idx = 0;
-        let audioCtx = null;
         let worker = null;
-        let isAutoScan = false; // 自動スキャンモードの状態
+        let isAutoScan = false;
+        let scanStep = 1; // 1:看板, 2:シール
+        let history = JSON.parse(localStorage.getItem('v41_scan_history') || '{}'); 
+
+        function openSetup() {
+            document.getElementById('setup-screen').style.display = "flex";
+            updateCourseOptions();
+            renderList();
+        }
 
         function updateCourseOptions() {
             const shift = document.getElementById('shift-in').value;
@@ -211,20 +208,13 @@
             }
         }
 
-        function openSetup() { document.getElementById('setup-screen').style.display = "flex"; updateCourseOptions(); }
-
-        async function applySettings() {
+        function applySettings() {
             myCourse = document.getElementById('course-in').value;
-            localStorage.setItem('v40_course_id', myCourse);
+            localStorage.setItem('v41_course_id', myCourse);
             document.getElementById('setup-screen').style.display = "none";
             idx = 0;
             ui();
-            initAudio();
             if(!worker) initAI();
-        }
-
-        function initAudio() {
-            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
 
         async function initAI() {
@@ -232,46 +222,132 @@
             worker = await Tesseract.createWorker();
             await worker.loadLanguage('eng');
             await worker.initialize('eng');
-            await worker.setParameters({ 
-                tessedit_char_whitelist: '0123456789',
-                tessedit_pageseg_mode: '7' // 1行として認識
-            });
+            await worker.setParameters({ tessedit_char_whitelist: '0123456789', tessedit_pageseg_mode: '7' });
             btn.disabled = false;
             btn.innerText = "AUTO SCAN";
             btn.classList.add('ready');
         }
 
-        function playSound(type) {
-            if(!audioCtx) return;
-            if(audioCtx.state === 'suspended') audioCtx.resume();
-            const now = audioCtx.currentTime;
-            const g = audioCtx.createGain(); g.connect(audioCtx.destination);
-            const o = audioCtx.createOscillator(); o.connect(g);
+        function renderList() {
+            const listUi = document.getElementById('delivery-list-ui');
+            listUi.innerHTML = "";
+            const shops = db[myCourse] || [];
+            shops.forEach((s, i) => {
+                const isDone = i < idx;
+                const myHist = history[s.c] || [];
+                const div = document.createElement('div');
+                div.className = `list-item ${isDone ? 'done' : ''}`;
+                div.innerHTML = `<span>${isDone ? '✔ ' : ''}${i+1}. ${s.n}</span><span class="unit-count">${myHist.length}台</span>`;
+                div.onclick = () => {
+                    if(myHist.length === 0) alert("記録なし");
+                    else alert(`${s.n}\n履歴:\n` + myHist.map(h => `・${h.date} ${h.time}`).join("\n"));
+                };
+                listUi.appendChild(div);
+            });
+        }
 
-            if(type === 'ok') {
-                o.type = 'triangle';
-                o.frequency.setValueAtTime(1046.50, now);
-                o.frequency.exponentialRampToValueAtTime(1318.51, now + 0.1);
-                g.gain.setValueAtTime(0.2, now);
-                g.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                o.start(); o.stop(now + 0.3);
-            } else if(type === 'ng') {
-                o.type = 'sine';
-                o.frequency.setValueAtTime(180, now);
-                o.frequency.linearRampToValueAtTime(140, now + 0.2);
-                g.gain.setValueAtTime(0.3, now);
-                g.gain.linearRampToValueAtTime(0.01, now + 0.4);
-                o.start(); o.stop(now + 0.4);
-            } else if(type === 'tap' || type === 'start') {
-                o.type = 'sine';
-                o.frequency.setValueAtTime(1500, now);
-                g.gain.setValueAtTime(0.05, now);
-                g.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-                o.start(); o.stop(now + 0.05);
+        function ui() {
+            const item = db[myCourse][idx];
+            document.getElementById('top-id-display').innerText = `${myCourse} - ${String(idx + 1).padStart(2, '0')}`;
+            document.getElementById('code-label').innerText = item.c;
+            document.getElementById('name-label').innerText = item.n;
+            updateStepLabel();
+        }
+
+        function updateStepLabel() {
+            const label = document.getElementById('scan-step-label');
+            const guide = document.getElementById('guide');
+            if(scanStep === 1) {
+                label.innerText = "STEP 1: 看板スキャン";
+                label.style.color = "var(--purple-accent)";
+                guide.classList.remove('step2');
+            } else {
+                label.innerText = "STEP 2: シールスキャン";
+                label.style.color = "#ff9f43";
+                guide.classList.add('step2');
             }
         }
 
-        function showVisualEffect(isOk) {
+        function stepShop(d) {
+            const list = db[myCourse];
+            idx = Math.max(0, Math.min(list.length - 1, idx + d));
+            scanStep = 1; 
+            ui();
+        }
+
+        function toggleAutoScan() {
+            isAutoScan = !isAutoScan;
+            const btn = document.getElementById('scan-main');
+            if(isAutoScan) {
+                btn.innerText = "STOP";
+                btn.classList.add('active');
+                runScannerLoop();
+            } else {
+                btn.innerText = "AUTO SCAN";
+                btn.classList.remove('active');
+            }
+        }
+
+        async function runScannerLoop() {
+            if(!isAutoScan) return;
+            const v = document.getElementById('video');
+            const canvas = document.createElement('canvas');
+            const scale = v.videoWidth / v.clientWidth;
+            canvas.width = 180; canvas.height = 80;
+            const sx = (v.videoWidth - 180 * scale) / 2;
+            const sy = (v.videoHeight - 80 * scale) / 2;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(v, sx, sy, 180 * scale, 80 * scale, 0, 0, 180, 80);
+
+            let imageData = ctx.getImageData(0,0,180,80);
+            for(let i=0; i<imageData.data.length; i+=4) {
+                let g = imageData.data[i]*0.3 + imageData.data[i+1]*0.59 + imageData.data[i+2]*0.11;
+                imageData.data[i] = imageData.data[i+1] = imageData.data[i+2] = g > 120 ? 255 : 0;
+            }
+            ctx.putImageData(imageData, 0, 0);
+
+            try {
+                const res = await worker.recognize(canvas);
+                const txt = res.data.text.replace(/[^0-9]/g, '');
+                if(txt.length >= 6) checkMatch(txt);
+            } catch(e) {}
+            setTimeout(runScannerLoop, 300);
+        }
+
+        let lastCheckTime = 0;
+        function checkMatch(input) {
+            const now = Date.now();
+            if(now - lastCheckTime < 1800) return;
+            const targetCode = db[myCourse][idx].c;
+            if(!input.includes(targetCode)) {
+                if(input.length === 6) { lastCheckTime = now; showVisual(false); if(navigator.vibrate) navigator.vibrate(400); }
+                return;
+            }
+            lastCheckTime = now;
+            if(scanStep === 1) {
+                scanStep = 2;
+                if(navigator.vibrate) navigator.vibrate(100);
+                updateStepLabel();
+            } else {
+                saveRecord(targetCode);
+                showVisual(true);
+                scanStep = 1;
+                updateStepLabel();
+                if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
+            }
+        }
+
+        function saveRecord(code) {
+            const now = new Date();
+            const dateStr = `${now.getMonth()+1}/${now.getDate()}`;
+            const timeStr = now.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
+            if(!history[code]) history[code] = [];
+            history[code].push({ date: dateStr, time: timeStr });
+            localStorage.setItem('v41_scan_history', JSON.stringify(history));
+            ui();
+        }
+
+        function showVisual(isOk) {
             const overlay = document.getElementById('symbol-overlay');
             overlay.innerText = isOk ? "○" : "×";
             overlay.style.color = isOk ? "var(--ok-blue)" : "var(--ng-red)";
@@ -280,120 +356,15 @@
             overlay.classList.add('animate-symbol');
         }
 
-        function ui() {
-            if(!db[myCourse]) return;
-            const item = db[myCourse][idx];
-            document.getElementById('top-id-display').innerText = `${myCourse} - ${String(idx + 1).padStart(2, '0')}`;
-            document.getElementById('code-label').innerText = item.c;
-            document.getElementById('name-label').innerText = item.n;
-        }
-
-        function stepShop(d) {
-            const list = db[myCourse];
-            idx = Math.max(0, Math.min(list.length - 1, idx + d));
-            ui();
-        }
-
         async function cam() {
             const v = document.getElementById('video');
             try {
                 const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } });
                 v.srcObject = s;
-            } catch(e) { alert("カメラを許可してください"); }
+            } catch(e) {}
         }
 
-        function openManual() {
-            playSound('tap');
-            document.getElementById('manual-box').style.display = "flex";
-            const input = document.getElementById('manual-input');
-            input.value = "";
-            setTimeout(() => input.focus(), 300);
-        }
-        function closeManual() { document.getElementById('manual-box').style.display = "none"; }
-        
-        document.getElementById('manual-input').addEventListener('input', function(e){
-            playSound('tap');
-            if(this.value.length === 6) { checkResult(this.value); setTimeout(closeManual, 500); }
-        });
-
-        // 1 & 2 追加：自動スキャン切り替え
-        function toggleAutoScan() {
-            isAutoScan = !isAutoScan;
-            const btn = document.getElementById('scan-main');
-            const guide = document.getElementById('guide');
-            if(isAutoScan) {
-                playSound('start');
-                btn.innerText = "STOP";
-                btn.classList.add('active');
-                guide.classList.add('scanning');
-                runScannerLoop();
-            } else {
-                btn.innerText = "AUTO SCAN";
-                btn.classList.remove('active');
-                guide.classList.remove('scanning');
-            }
-        }
-
-        async function runScannerLoop() {
-            if(!isAutoScan) return;
-            await runOCR();
-            // 認識完了後、少し待機して再度スキャン
-            setTimeout(runScannerLoop, 400); 
-        }
-
-        async function runOCR() {
-            const v = document.getElementById('video');
-            const canvas = document.createElement('canvas');
-            const scale = v.videoWidth / v.clientWidth;
-            canvas.width = 200; canvas.height = 100; // ガイド枠より少し大きめに切り出し
-            const sx = (v.videoWidth - 200 * scale) / 2;
-            const sy = (v.videoHeight - 100 * scale) / 2;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(v, sx, sy, 200 * scale, 100 * scale, 0, 0, 200, 100);
-
-            // 1. 画像前処理（グレースケール & 簡易二値化）
-            let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            let data = imageData.data;
-            for (let i = 0; i < data.length; i += 4) {
-                let gray = data[i] * 0.3 + data[i + 1] * 0.59 + data[i + 2] * 0.11;
-                let v = (gray > 128) ? 255 : 0; // しきい値128で白黒化
-                data[i] = data[i + 1] = data[i + 2] = v;
-            }
-            ctx.putImageData(imageData, 0, 0);
-
-            try {
-                const res = await worker.recognize(canvas);
-                const txt = res.data.text.replace(/[^0-9]/g, '');
-                if(txt.length >= 4) { // 4桁以上の数字が見えたら判定へ
-                    checkResult(txt);
-                }
-            } catch(e) { console.log("OCR Error"); }
-        }
-
-        let lastCheckTime = 0;
-        function checkResult(input) {
-            // 短時間に何度も判定しないようガード
-            const now = Date.now();
-            if(now - lastCheckTime < 1500) return;
-
-            const item = db[myCourse][idx];
-            const isMatch = input.includes(item.c);
-            
-            if(isMatch) { 
-                lastCheckTime = now;
-                playSound('ok'); 
-                showVisualEffect(true); 
-                if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
-            } else if(input.length === 6) {
-                // 完全に6桁読んで間違っている場合のみNG
-                lastCheckTime = now;
-                playSound('ng'); 
-                showVisualEffect(false); 
-                if(navigator.vibrate) navigator.vibrate(400);
-            }
-        }
-
-        window.onload = () => { genData(); updateCourseOptions(); cam(); };
+        window.onload = () => { genData(); updateCourseOptions(); cam(); ui(); };
     </script>
 </body>
 </html>
