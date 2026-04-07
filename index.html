@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v45.0</title>
-    
+    <title>Scanner VIOLET v46.0</title>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="manifest" href="data:application/manifest+json,{'display':'standalone','name':'VIOLET PRO'}">
-
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -48,11 +46,9 @@
         }
         .animate-symbol { animation: floatUp 0.8s ease-out forwards; }
 
-        /* 設定・履歴画面 */
         #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: none; flex-direction: column; padding: 20px; padding-top: 50px; }
         .setup-card { background: #fff; padding: 20px; border-radius: 25px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-bottom: 15px; flex-shrink: 0; }
         
-        /* 履歴タブ */
         .history-tabs { display: flex; justify-content: space-around; background: #ddd; border-radius: 15px 15px 0 0; overflow: hidden; }
         .tab-btn { flex: 1; padding: 12px; border: none; background: none; font-weight: bold; color: #777; font-size: 14px; }
         .tab-btn.active { background: #fff; color: var(--purple-accent); border-bottom: 3px solid var(--purple-accent); }
@@ -60,6 +56,7 @@
         .list-container { flex-grow: 1; overflow-y: auto; background: #fff; border-radius: 0 0 20px 20px; box-shadow: var(--shadow); padding: 5px; touch-action: pan-y; }
         .list-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; font-size: 17px; font-weight: bold; }
         .list-item.done { background: #f0fff4; color: #2ecc71; }
+        .list-item.passed { color: #aaa; background: #f9f9f9; }
 
         #custom-popup { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px; }
         .popup-card { background: #fff; padding: 25px; border-radius: 20px; width: 100%; max-width: 320px; text-align: center; }
@@ -93,9 +90,9 @@
         </div>
 
         <div class="history-tabs">
-            <button class="tab-btn active" id="tab-0" onclick="changeTab(0)">今日</button>
-            <button class="tab-btn" id="tab-1" onclick="changeTab(1)">昨日</button>
-            <button class="tab-btn" id="tab-2" onclick="changeTab(2)">一昨日</button>
+            <button class="tab-btn active" id="tab-0" onclick="changeTab(0)">今便</button>
+            <button class="tab-btn" id="tab-1" onclick="changeTab(1)">前回</button>
+            <button class="tab-btn" id="tab-2" onclick="changeTab(2)">前々回</button>
         </div>
         <div class="list-container" id="history-container">
             <div class="delivery-list" id="delivery-list-ui"></div>
@@ -138,28 +135,32 @@
         let worker = null;
         let isAutoScan = false;
         let scanStep = 1; 
-        let historyData = JSON.parse(localStorage.getItem('v45_history_v2') || '{}'); 
+        let historyData = JSON.parse(localStorage.getItem('v46_history') || '[]'); 
         let viewDayOffset = 0; 
         let audioCtx = null;
 
-        // --- 履歴管理ロジック ---
-        function getTargetDateStr(offset = 0) {
-            const d = new Date();
-            d.setDate(d.getDate() - offset);
-            return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+        // --- 0時を跨ぐ運用対応：便の開始をトリガーとした履歴管理 ---
+        function getCurrentCycle() {
+            // historyDataは[ {timestamp: 12345, data: {code: []}}, ... ] の最大3件の配列とする
+            if(historyData.length === 0) createNewCycle();
+            return historyData[0];
         }
 
-        function cleanupHistory() {
-            const keep = [getTargetDateStr(0), getTargetDateStr(1), getTargetDateStr(2)];
-            let newHist = {};
-            keep.forEach(date => { if(historyData[date]) newHist[date] = historyData[date]; });
-            historyData = newHist;
+        function createNewCycle() {
+            // 新しい便の開始時に新しいデータ枠を作成
+            const newEntry = {
+                id: Date.now(),
+                course: myCourse,
+                shops: {} 
+            };
+            historyData.unshift(newEntry);
+            if(historyData.length > 3) historyData.pop();
             saveHistory();
         }
 
-        function saveHistory() { localStorage.setItem('v45_history_v2', JSON.stringify(historyData)); }
+        function saveHistory() { localStorage.setItem('v46_history', JSON.stringify(historyData)); }
 
-        // --- UI & サウンド ---
+        // --- サウンド ---
         function playSound(type) {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -242,6 +243,7 @@
         function applySettings() {
             myCourse = document.getElementById('course-in').value;
             localStorage.setItem('v41_course_id', myCourse);
+            createNewCycle(); // コース確定時に新しい履歴サイクルを開始
             document.getElementById('setup-screen').style.display = "none";
             idx = 0; ui();
         }
@@ -257,22 +259,25 @@
         function renderList() {
             const listUi = document.getElementById('delivery-list-ui');
             listUi.innerHTML = "";
-            const shops = db[myCourse] || [];
-            const dateStr = getTargetDateStr(viewDayOffset);
-            const dayHist = historyData[dateStr] || {};
+            
+            const entry = historyData[viewDayOffset];
+            if(!entry) { listUi.innerHTML = "記録なし"; return; }
 
+            const shops = db[entry.course] || [];
+            
             shops.forEach((s, i) => {
-                const myShopHist = dayHist[s.c] || [];
-                const isDoneToday = (viewDayOffset === 0 && i < idx);
-                const hasRecord = myShopHist.length > 0;
+                const myShopHist = entry.shops[s.c] || [];
+                const isPassed = (viewDayOffset === 0 && i < idx);
+                const hasScan = myShopHist.length > 0;
 
                 const div = document.createElement('div');
-                div.className = `list-item ${(isDoneToday || hasRecord) ? 'done' : ''}`;
-                div.innerHTML = `<span>${(isDoneToday || hasRecord) ? '✔ ' : ''}${i+1}. ${s.n}</span><span style='font-size:15px; color:#666;'>${myShopHist.length}台</span>`;
+                // 納品完了(Scanあり)なら緑、通過済み(▲押し)ならグレー
+                div.className = `list-item ${hasScan ? 'done' : (isPassed ? 'passed' : '')}`;
+                div.innerHTML = `<span>${(hasScan || isPassed) ? '✔ ' : ''}${i+1}. ${s.n}</span><span style='font-size:15px; color:#666;'>${hasScan ? myShopHist.length + '台' : (isPassed ? '通過' : '-')}</span>`;
                 div.onclick = () => {
                     playSound('tap');
-                    if(!hasRecord) showPopup("履歴なし", `${dateStr}\n納品実績はありません`);
-                    else showPopup(s.n, `${dateStr} 納品履歴:\n` + myShopHist.map(h => `・${h.time}`).join("\n"));
+                    if(hasScan) showPopup(s.n, `納品履歴:\n` + myShopHist.map(h => `・${h.time}`).join("\n"));
+                    else if(isPassed) showPopup(s.n, `スキャンなしで通過しました`);
                 };
                 listUi.appendChild(div);
             });
@@ -301,6 +306,10 @@
 
         function stepShop(d) {
             const list = db[myCourse];
+            // 右ボタン(d=1)が押された時のみ、通過チェック用のロジックを走らせる
+            if(d === 1) {
+                // 現在の店舗の履歴が空であっても、次へ進む＝リスト上でレ点が付く対象になる
+            }
             idx = Math.max(0, Math.min(list.length - 1, idx + d));
             scanStep = 1; ui();
         }
@@ -365,13 +374,11 @@
         let lastCheckTime = 0;
 
         function saveRecord(code) {
-            const today = getTargetDateStr(0);
+            const cycle = getCurrentCycle();
             const timeStr = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
             
-            if(!historyData[today]) historyData[today] = {};
-            if(!historyData[today][code]) historyData[today][code] = [];
-            
-            historyData[today][code].push({ time: timeStr });
+            if(!cycle.shops[code]) cycle.shops[code] = [];
+            cycle.shops[code].push({ time: timeStr });
             saveHistory();
             ui();
         }
@@ -393,7 +400,7 @@
             } catch(e) {}
         }
 
-        window.onload = () => { cleanupHistory(); loadDataFromSheet(); cam(); };
+        window.onload = () => { loadDataFromSheet(); cam(); };
     </script>
 </body>
 </html>
