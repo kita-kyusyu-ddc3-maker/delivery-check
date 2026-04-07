@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v36</title>
+    <title>Scanner VIOLET v38</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -27,14 +27,22 @@
         .line-code { font-size: 55px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; }
         .line-result { font-size: 26px; font-weight: 900; height: 1.2em; color: #888; }
 
+        /* カメラとガイド枠（★幅をスリムに修正） */
         #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; display: flex; align-items: center; justify-content: center; }
         .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
         #video { width: 100%; height: 100%; object-fit: cover; }
-        .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 80px; border: 2px solid var(--purple-accent); border-radius: 15px; z-index: 500; cursor: pointer; }
+        .guide-rect { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            width: 160px; /* ← 横幅をギュッと狭くしました */
+            height: 70px; 
+            border: 3px solid var(--purple-accent); 
+            border-radius: 12px; 
+            z-index: 500; cursor: pointer; 
+        }
 
         /* 手入力モーダル（小型） */
         #manual-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; flex-direction: column; align-items: center; justify-content: center; }
-        .manual-card { background: #fff; padding: 20px; border-radius: 20px; width: 280px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .manual-card { background: #fff; padding: 20px; border-radius: 20px; width: 280px; text-align: center; }
         #manual-input { width: 100%; padding: 10px; font-size: 36px; text-align: center; border-radius: 10px; border: 2px solid var(--purple-accent); margin-bottom: 15px; outline: none; }
 
         .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
@@ -104,7 +112,9 @@
     <script>
         const db = {}; 
         function genData() {
-            // 1便 (101-134)
+            // 前回のデータがここに入ります（長いため中略しますが、お手元のデータをそのまま使用してください）
+            // 実際にはここに db[101] = ... 等の全データを貼り付けます。
+            /* 350店舗データここから */
             db[101] = [{n:"福岡東医療センター",c:"267737"},{n:"NHO小倉医療センター",c:"386293"},{n:"北九州総合病院",c:"267720"},{n:"JCHO九州病院",c:"230421"},{n:"八幡東鳴水三丁目",c:"298844"},{n:"S宗像水光会総合病院",c:"241927"}];
             db[102] = [{n:"福岡県庁",c:"357200"},{n:"福津中央一丁目",c:"128830"},{n:"東福間駅前",c:"226046"},{n:"宗像田熊一丁目",c:"214468"},{n:"くりえいと宗像",c:"145891"},{n:"玄海瀬戸",c:"345070"}];
             db[103] = [{n:"九州大学病院",c:"368450"},{n:"宗像若木台",c:"117989"},{n:"宗像日の里五丁目",c:"165050"},{n:"宗像曲",c:"191490"},{n:"宗像赤間駅前",c:"368266"}];
@@ -139,7 +149,6 @@
             db[132] = [{n:"福岡多々良二丁目",c:"242097"},{n:"松島インター",c:"077480"},{n:"福岡馬出一丁目",c:"357558"},{n:"香椎浜",c:"344975"},{n:"和白東二丁目",c:"076115"},{n:"新宮夜臼五丁目",c:"298650"}];
             db[133] = [{n:"穂波町",c:"165267"},{n:"西鉄飯塚バスターミナル",c:"242157"},{n:"飯塚潤野",c:"372931"},{n:"飯塚横田",c:"230088"},{n:"飯塚東川津",c:"226371"}];
             db[134] = [{n:"宮若竹原",c:"247841"},{n:"福岡宮若長井鶴",c:"235921"},{n:"宮若龍徳",c:"275168"},{n:"宮若上有木",c:"173226"},{n:"若宮インター",c:"095851"}];
-
             db[201] = [{n:"宗像石丸三丁目",c:"241850"},{n:"福津花見が丘一丁目",c:"200331"},{n:"古賀舞の里",c:"165356"},{n:"古賀太郎丸",c:"076858"},{n:"舞松原",c:"165155"}];
             db[202] = [{n:"福岡若宮五丁目",c:"145980"},{n:"南福岡駅前",c:"080230"},{n:"麦野四丁目",c:"092781"},{n:"博多上呉服町",c:"381290"}];
             db[203] = [{n:"比恵町",c:"134829"},{n:"筑紫通東光寺",c:"091445"},{n:"博多那南六丁目",c:"145365"},{n:"博多美野島二丁目",c:"067033"},{n:"オリエンタルホテル福岡",c:"048320"}];
@@ -175,43 +184,37 @@
             db[233] = [{n:"博多駅筑紫口",c:"145804"},{n:"春日原北町",c:"154542"},{n:"博多南駅前",c:"357624"},{n:"太宰府吉松三丁目",c:"282984"}];
             db[234] = [{n:"西鉄白木原駅",c:"381574"},{n:"福岡博多駅前二丁目",c:"191313"},{n:"吉塚三丁目",c:"230378"},{n:"吉塚五丁目",c:"134404"},{n:"吉塚本町",c:"176845"},{n:"中洲一丁目",c:"091468"}];
             db[301] = [{n:"中洲二丁目",c:"176673"},{n:"中洲であい橋通り",c:"372730"}];
+            /* 350店舗データここまで */
         }
 
-        let myCourse = localStorage.getItem('v36_course') || 101;
+        let myCourse = localStorage.getItem('v38_course') || 101;
         let idx = 0;
         let audioCtx = null;
         let worker = null;
 
-        // リストを生成する関数
         function updateCourseOptions() {
             const shift = document.getElementById('shift-in').value;
             const menu = document.getElementById('course-in');
-            menu.innerHTML = ""; // 一度空にする
-            
+            menu.innerHTML = "";
             let start, end;
             if(shift == "1") { start = 101; end = 134; }
             else if(shift == "2") { start = 201; end = 234; }
             else { start = 301; end = 301; }
-
             for(let i=start; i<=end; i++) {
                 if(db[i]) {
                     let o = document.createElement("option");
-                    o.value = i;
-                    o.text = i + " コース";
+                    o.value = i; o.text = i + " コース";
                     menu.add(o);
                     if(i == myCourse) o.selected = true;
                 }
             }
         }
 
-        function openSetup() { 
-            document.getElementById('setup-screen').style.display = "flex"; 
-            updateCourseOptions(); 
-        }
+        function openSetup() { document.getElementById('setup-screen').style.display = "flex"; updateCourseOptions(); }
 
         async function applySettings() {
             myCourse = document.getElementById('course-in').value;
-            localStorage.setItem('v36_course', myCourse);
+            localStorage.setItem('v38_course', myCourse);
             document.getElementById('setup-screen').style.display = "none";
             idx = 0;
             ui();
@@ -239,7 +242,7 @@
             const g = audioCtx.createGain(); g.connect(audioCtx.destination);
             const o = audioCtx.createOscillator(); o.connect(g);
             if(type === 'ok') { o.frequency.setValueAtTime(880, now); g.gain.setValueAtTime(0.1, now); o.start(); o.stop(now+0.2); }
-            else if(type === 'ng') { o.type = 'sawtooth'; o.frequency.setValueAtTime(100, now); g.gain.setValueAtTime(0.1, now); o.start(); o.stop(now+0.4); }
+            else if(type === 'ng') { o.type = 'sawtooth'; o.frequency.setValueAtTime(100, now); g.gain.setValueAtTime(0.15, now); o.start(); o.stop(now+0.4); }
             else { o.frequency.setValueAtTime(1200, now); g.gain.setValueAtTime(0.05, now); o.start(); o.stop(now+0.05); }
         }
 
@@ -284,9 +287,16 @@
             const btn = document.getElementById('scan-main');
             btn.disabled = true;
             const v = document.getElementById('video');
+            
+            // 【重要】スリム枠の中身だけをAIに渡す処理
             const canvas = document.createElement('canvas');
-            canvas.width = 300; canvas.height = 80;
-            canvas.getContext('2d').drawImage(v, 0,0,300,80);
+            const scale = v.videoWidth / v.clientWidth;
+            // 紫枠のサイズ (160x70) に合わせて切り抜き
+            canvas.width = 160; canvas.height = 70;
+            const sx = (v.videoWidth - 160 * scale) / 2;
+            const sy = (v.videoHeight - 70 * scale) / 2;
+            canvas.getContext('2d').drawImage(v, sx, sy, 160 * scale, 70 * scale, 0, 0, 160, 70);
+
             try {
                 const res = await Promise.race([worker.recognize(canvas), new Promise((_,r)=>setTimeout(()=>r(),3500))]);
                 checkResult(res.data.text.replace(/[^0-9]/g, ''));
@@ -297,18 +307,19 @@
         function checkResult(input) {
             const item = db[myCourse][idx];
             const flash = document.getElementById('flash');
-            if(input.includes(item.c)) { playSound('ok'); flash.className="match"; }
-            else { playSound('ng'); flash.className="mismatch"; }
+            const resL = document.getElementById('res-label');
+            if(input.includes(item.c)) { 
+                playSound('ok'); flash.className="match"; resL.innerText = "OK: " + item.c;
+                if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
+            } else { 
+                playSound('ng'); flash.className="mismatch"; resL.innerText = "NG: " + (input.slice(0,6) || "??????");
+                if(navigator.vibrate) navigator.vibrate(400);
+            }
             flash.style.opacity = 1;
             setTimeout(()=> flash.style.opacity=0, 800);
         }
 
-        // ページ読み込み時の処理
-        window.onload = () => { 
-            genData();            // 1. データを読み込む
-            updateCourseOptions();// 2. コースの選択肢を作る
-            cam();                // 3. カメラを準備する
-        };
+        window.onload = () => { genData(); updateCourseOptions(); cam(); };
     </script>
 </body>
 </html>
