@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v46.0</title>
+    <title>Scanner VIOLET v46.1</title>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="manifest" href="data:application/manifest+json,{'display':'standalone','name':'VIOLET PRO'}">
@@ -86,7 +86,7 @@
                 <option value="1">1便</option><option value="2">2便</option><option value="3">3便</option>
             </select>
             <select id="course-in" onchange="playSound('tap');" style="width:100%; padding:12px; font-size:18px; margin-bottom:10px; border-radius:10px; border:1px solid #ccc;"></select>
-            <button onclick="applySettings(); playSound('ok');" style="width:100%; height:50px; background:var(--purple-accent); color:#fff; border:none; border-radius:12px; font-size:18px; font-weight:bold;">設定を確定</button>
+            <button onclick="applySettings(); playSound('tap');" style="width:100%; height:50px; background:var(--purple-accent); color:#fff; border:none; border-radius:12px; font-size:18px; font-weight:bold;">設定を確定</button>
         </div>
 
         <div class="history-tabs">
@@ -139,15 +139,12 @@
         let viewDayOffset = 0; 
         let audioCtx = null;
 
-        // --- 0時を跨ぐ運用対応：便の開始をトリガーとした履歴管理 ---
         function getCurrentCycle() {
-            // historyDataは[ {timestamp: 12345, data: {code: []}}, ... ] の最大3件の配列とする
             if(historyData.length === 0) createNewCycle();
             return historyData[0];
         }
 
         function createNewCycle() {
-            // 新しい便の開始時に新しいデータ枠を作成
             const newEntry = {
                 id: Date.now(),
                 course: myCourse,
@@ -160,7 +157,6 @@
 
         function saveHistory() { localStorage.setItem('v46_history', JSON.stringify(historyData)); }
 
-        // --- サウンド ---
         function playSound(type) {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -191,7 +187,6 @@
         }
         function closePopup() { document.getElementById('custom-popup').style.display = "none"; }
 
-        // --- データ読込 ---
         async function loadDataFromSheet() {
             try {
                 const response = await fetch(SHEET_URL);
@@ -243,7 +238,7 @@
         function applySettings() {
             myCourse = document.getElementById('course-in').value;
             localStorage.setItem('v41_course_id', myCourse);
-            createNewCycle(); // コース確定時に新しい履歴サイクルを開始
+            createNewCycle(); 
             document.getElementById('setup-screen').style.display = "none";
             idx = 0; ui();
         }
@@ -271,12 +266,15 @@
                 const hasScan = myShopHist.length > 0;
 
                 const div = document.createElement('div');
-                // 納品完了(Scanあり)なら緑、通過済み(▲押し)ならグレー
                 div.className = `list-item ${hasScan ? 'done' : (isPassed ? 'passed' : '')}`;
                 div.innerHTML = `<span>${(hasScan || isPassed) ? '✔ ' : ''}${i+1}. ${s.n}</span><span style='font-size:15px; color:#666;'>${hasScan ? myShopHist.length + '台' : (isPassed ? '通過' : '-')}</span>`;
                 div.onclick = () => {
                     playSound('tap');
-                    if(hasScan) showPopup(s.n, `納品履歴:\n` + myShopHist.map(h => `・${h.time}`).join("\n"));
+                    if(hasScan) {
+                        // 最初のスキャン時間を元に日付を取得
+                        const firstDate = myShopHist[0].date || "-/-";
+                        showPopup(s.n, `納品日: ${firstDate}\n履歴:\n` + myShopHist.map(h => `・${h.time}`).join("\n"));
+                    }
                     else if(isPassed) showPopup(s.n, `スキャンなしで通過しました`);
                 };
                 listUi.appendChild(div);
@@ -306,10 +304,6 @@
 
         function stepShop(d) {
             const list = db[myCourse];
-            // 右ボタン(d=1)が押された時のみ、通過チェック用のロジックを走らせる
-            if(d === 1) {
-                // 現在の店舗の履歴が空であっても、次へ進む＝リスト上でレ点が付く対象になる
-            }
             idx = Math.max(0, Math.min(list.length - 1, idx + d));
             scanStep = 1; ui();
         }
@@ -375,10 +369,12 @@
 
         function saveRecord(code) {
             const cycle = getCurrentCycle();
-            const timeStr = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
+            const now = new Date();
+            const dateStr = `${now.getMonth()+1}/${now.getDate()}`;
+            const timeStr = now.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
             
             if(!cycle.shops[code]) cycle.shops[code] = [];
-            cycle.shops[code].push({ time: timeStr });
+            cycle.shops[code].push({ time: timeStr, date: dateStr });
             saveHistory();
             ui();
         }
