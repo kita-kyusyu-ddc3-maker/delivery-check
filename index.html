@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v46.3</title>
+    <title>Scanner VIOLET v1.1</title>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="manifest" href="data:application/manifest+json,{'display':'standalone','name':'VIOLET PRO'}">
@@ -50,13 +50,12 @@
         .setup-card { background: #fff; padding: 20px; border-radius: 25px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-bottom: 15px; flex-shrink: 0; }
         
         .history-tabs { display: flex; justify-content: space-around; background: #ddd; border-radius: 15px 15px 0 0; overflow: hidden; }
-        .tab-btn { flex: 1; padding: 12px; border: none; background: none; font-weight: bold; color: #777; font-size: 14px; }
+        .tab-btn { flex: 1; padding: 12px; border: none; background: none; font-weight: bold; color: #777; font-size: 13px; }
         .tab-btn.active { background: #fff; color: var(--purple-accent); border-bottom: 3px solid var(--purple-accent); }
 
         .list-container { flex-grow: 1; overflow-y: auto; background: #fff; border-radius: 0 0 20px 20px; box-shadow: var(--shadow); padding: 5px; touch-action: pan-y; }
         .list-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; font-size: 17px; font-weight: bold; }
         .list-item.done { background: #f0fff4; color: #2ecc71; }
-        .list-item.passed { color: #aaa; background: #f9f9f9; }
 
         #custom-popup { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px; }
         .popup-card { background: #fff; padding: 25px; border-radius: 20px; width: 100%; max-width: 320px; text-align: center; }
@@ -104,7 +103,7 @@
     <div id="symbol-overlay"></div>
     <div class="top-id-bar">
         <button class="settings-btn" onclick="openSetup(); playSound('tap');">⚙</button>
-        <div id="top-id-display" class="course-title">VIOLET PRO</div>
+        <div id="top-id-display" class="course-title">VIOLET V1.1</div>
     </div>
 
     <div class="header">
@@ -139,6 +138,13 @@
         let viewDayOffset = 0; 
         let audioCtx = null;
 
+        // 日付フォーマット関数: "4月8日(水)"
+        function formatDateJP(timestamp) {
+            const d = new Date(timestamp);
+            const week = ['日','月','火','水','木','金','土'];
+            return `${d.getMonth()+1}月${d.getDate()}日(${week[d.getDay()]})`;
+        }
+
         function getCurrentCycle() {
             if(historyData.length === 0) createNewCycle();
             return historyData[0];
@@ -148,7 +154,8 @@
             const newEntry = {
                 id: Date.now(),
                 course: myCourse,
-                shops: {} 
+                shops: {},
+                passedShops: [] // 右キーで飛ばした（完了した）店舗のインデックス
             };
             historyData.unshift(newEntry);
             if(historyData.length > 3) historyData.pop();
@@ -205,9 +212,7 @@
                 if(!myCourse || !db[myCourse]) myCourse = Object.keys(db)[0];
                 updateCourseOptions(); ui();
                 if(!worker) initAI();
-            } catch (e) {
-                document.getElementById('name-label').innerText = "通信エラー";
-            }
+            } catch (e) { document.getElementById('name-label').innerText = "通信エラー"; }
         }
 
         function updateCourseOptions() {
@@ -232,12 +237,8 @@
             for(let i=0; i<3; i++) {
                 const btn = document.getElementById(`tab-${i}`);
                 const entry = historyData[i];
-                if(entry) {
-                    const d = new Date(entry.id);
-                    btn.innerText = `${d.getMonth()+1}/${d.getDate()}`;
-                } else {
-                    btn.innerText = "-/-";
-                }
+                if(entry) { btn.innerText = formatDateJP(entry.id); } 
+                else { btn.innerText = "-/-"; }
             }
         }
 
@@ -268,32 +269,29 @@
         function renderList() {
             const listUi = document.getElementById('delivery-list-ui');
             listUi.innerHTML = "";
-            
             const entry = historyData[viewDayOffset];
             if(!entry) { listUi.innerHTML = "<div style='text-align:center; padding:20px; color:#999;'>記録なし</div>"; return; }
 
             const shops = db[entry.course] || [];
-            
             shops.forEach((s, i) => {
                 const myShopHist = entry.shops[s.c] || [];
-                const isPassed = (viewDayOffset === 0 && i < idx);
-                const hasScan = myShopHist.length > 0;
-
-                const div = document.createElement('div');
-                div.className = `list-item ${hasScan ? 'done' : (isPassed ? 'passed' : '')}`;
+                // 今日(offset 0)の場合、現在のidxより前、または履歴がある場合のみチェック
+                const isFinished = (viewDayOffset === 0 && i < idx) || myShopHist.length > 0;
                 
-                const statusMarker = (hasScan || isPassed) ? '✔' : '-';
-                const unitText = hasScan ? myShopHist.length + '台' : statusMarker;
+                const div = document.createElement('div');
+                div.className = `list-item ${isFinished ? 'done' : ''}`;
+                
+                const statusMarker = isFinished ? '✔' : '-';
+                const unitText = myShopHist.length > 0 ? myShopHist.length + '台' : statusMarker;
 
-                div.innerHTML = `<span>✔ ${i+1}. ${s.n}</span><span style='font-size:15px; color:#666;'>${unitText}</span>`;
+                div.innerHTML = `<span>${statusMarker} ${i+1}. ${s.n}</span><span style='font-size:15px; color:#666;'>${unitText}</span>`;
                 div.onclick = () => {
                     playSound('tap');
-                    if(hasScan) {
-                        const d = new Date(entry.id);
-                        const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
-                        showPopup(s.n, `納品日: ${dateStr}\n履歴:\n` + myShopHist.map(h => `・${h.time}`).join("\n"));
+                    if(myShopHist.length > 0) {
+                        showPopup(s.n, `納品日: ${formatDateJP(entry.id)}\n履歴:\n` + myShopHist.map(h => `・${h.time}`).join("\n"));
+                    } else if(isFinished) {
+                        showPopup(s.n, `スキャンなしで完了処理されました`);
                     }
-                    else if(isPassed) showPopup(s.n, `スキャンなしで通過しました`);
                 };
                 listUi.appendChild(div);
             });
@@ -322,6 +320,15 @@
 
         function stepShop(d) {
             const list = db[myCourse];
+            // 「次へ(d=1)」ボタンが押されたときのみ、現在の店舗を完了扱いにするロジック
+            if(d === 1) {
+                const cycle = getCurrentCycle();
+                const currentShop = list[idx];
+                // 完了記録（履歴が空でも✔が付くようにするフラグ）
+                if(!cycle.shops[currentShop.c]) {
+                    // スキャン履歴がない状態で飛ばした証跡が必要ならここで記述
+                }
+            }
             idx = Math.max(0, Math.min(list.length - 1, idx + d));
             scanStep = 1; ui();
         }
@@ -363,6 +370,7 @@
             if (isAutoScan) setTimeout(runScannerLoop, 300);
         }
 
+        let lastCheckTime = 0;
         function checkMatch(input) {
             const now = Date.now();
             if(now - lastCheckTime < 1800) return;
@@ -383,12 +391,10 @@
                 toggleAutoScan(); 
             }
         }
-        let lastCheckTime = 0;
 
         function saveRecord(code) {
             const cycle = getCurrentCycle();
             const timeStr = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
-            
             if(!cycle.shops[code]) cycle.shops[code] = [];
             cycle.shops[code].push({ time: timeStr });
             saveHistory();
