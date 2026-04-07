@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v33</title>
+    <title>Scanner VIOLET v34</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -17,8 +17,9 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: var(--bg); color: #000; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
+        /* メイン画面：帯 */
         .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; }
-        .settings-btn { background: none; border: none; color: white; font-size: 35px; padding: 10px; }
+        .settings-btn { background: none; border: none; color: white; font-size: 35px; padding: 10px; outline: none; }
         .course-title { font-size: 38px; flex-grow: 1; text-align: center; margin-right: 45px; }
 
         .header { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; text-align: center; }
@@ -31,29 +32,29 @@
         #video { width: 100%; height: 100%; object-fit: cover; }
         .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 80px; border: 2px solid var(--purple-accent); border-radius: 15px; z-index: 10; cursor: pointer; }
 
-        #manual-box { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 6000; flex-direction: column; align-items: center; justify-content: center; }
-        #manual-input { width: 85%; padding: 15px; font-size: 45px; text-align: center; border-radius: 15px; border: 3px solid var(--purple-accent); margin-bottom: 20px; }
+        /* 設定画面レイアウト */
+        #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .setup-card { background: #fff; padding: 30px; border-radius: 25px; width: 100%; max-width: 400px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); }
+        .setup-card label { display: block; font-size: 18px; font-weight: bold; color: #666; margin-bottom: 5px; text-align: left; }
+        select { width: 100%; height: 60px; font-size: 24px; font-weight: bold; margin-bottom: 25px; padding: 0 15px; border: 2px solid #ddd; border-radius: 12px; background: #fff; color: #000; outline: none; }
+        .confirm-btn { width: 100%; height: 70px; background: #6c5ce7; color: white; border: none; border-radius: 15px; font-size: 26px; font-weight: bold; box-shadow: 0 8px 15px rgba(108, 92, 231, 0.3); }
 
+        /* 下部ボタン */
         .footer { height: 35vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 20px; }
         .btn-side { width: 80px; height: 80px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 45px; display: flex; align-items: center; justify-content: center; }
         #scan-main { width: 155px; height: 155px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 22px; font-weight: 900; }
         #scan-main.ready { background: var(--bg); color: var(--purple-accent); font-size: 34px; }
-
         #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: 0.3s; z-index: 1000; }
         .match { background: radial-gradient(circle, rgba(0,138,138,0.4) 0%, transparent 70%); }
         .mismatch { background: radial-gradient(circle, rgba(214,48,49,0.4) 0%, transparent 70%); }
-
-        /* 設定画面 */
-        #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .setup-card { background: #fff; padding: 25px; border-radius: 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        select { width: 100%; padding: 15px; font-size: 24px; margin: 10px 0 20px; border: 2px solid #ddd; border-radius: 10px; background: #fff; color: #000; }
     </style>
 </head>
 <body>
 
-    <div id="setup-screen" style="display: flex;">
+    <div id="setup-screen">
         <div class="setup-card">
-            <h2 style="text-align: center; margin-bottom: 20px;">コース設定</h2>
+            <h2 style="text-align: center; margin-bottom: 30px; font-size: 30px;">コース設定</h2>
+            
             <label>1. 便を選択</label>
             <select id="shift-in" onchange="updateCourseOptions()">
                 <option value="1">1便</option>
@@ -62,16 +63,11 @@
             </select>
 
             <label>2. コースを選択</label>
-            <select id="course-in"></select>
+            <select id="course-in">
+                </select>
 
-            <button style="width: 100%; height: 60px; background: #6c5ce7; color: white; border: none; border-radius: 10px; font-size: 24px; font-weight: bold;" onclick="applySettings()">設定を確定</button>
+            <button class="confirm-btn" onclick="applySettings()">設定を確定</button>
         </div>
-    </div>
-
-    <div id="manual-box">
-        <h2 style="color:white; margin-bottom:20px;">番号入力</h2>
-        <input type="tel" id="manual-input" maxlength="6" placeholder="------">
-        <button class="btn-side" style="width:160px; border-radius:15px; font-size:20px;" onclick="closeManual()">戻る</button>
     </div>
 
     <div id="flash"></div>
@@ -89,7 +85,7 @@
     <div id="cam-area">
         <div class="cam-frame">
             <video id="video" autoplay playsinline muted></video>
-            <div class="guide-rect" onclick="openManual()"></div>
+            <div class="guide-rect"></div>
         </div>
     </div>
     
@@ -102,6 +98,7 @@
     <script>
         const db = {}; 
         function genData() {
+            // 1便 (101-134)
             db[101] = [{n:"福岡東医療センター",c:"267737"},{n:"NHO小倉医療センター",c:"386293"},{n:"北九州総合病院",c:"267720"},{n:"JCHO九州病院",c:"230421"},{n:"八幡東鳴水三丁目",c:"298844"},{n:"S宗像水光会総合病院",c:"241927"}];
             db[102] = [{n:"福岡県庁",c:"357200"},{n:"福津中央一丁目",c:"128830"},{n:"東福間駅前",c:"226046"},{n:"宗像田熊一丁目",c:"214468"},{n:"くりえいと宗像",c:"145891"},{n:"玄海瀬戸",c:"345070"}];
             db[103] = [{n:"九州大学病院",c:"368450"},{n:"宗像若木台",c:"117989"},{n:"宗像日の里五丁目",c:"165050"},{n:"宗像曲",c:"191490"},{n:"宗像赤間駅前",c:"368266"}];
@@ -171,15 +168,15 @@
             db[232] = [{n:"博多駅明治公園",c:"154690"},{n:"博多住吉五丁目",c:"298761"},{n:"福岡下川端町",c:"242246"},{n:"上川端町",c:"134597"},{n:"博多駅前",c:"373103"}];
             db[233] = [{n:"博多駅筑紫口",c:"145804"},{n:"春日原北町",c:"154542"},{n:"博多南駅前",c:"357624"},{n:"太宰府吉松三丁目",c:"282984"}];
             db[234] = [{n:"西鉄白木原駅",c:"381574"},{n:"福岡博多駅前二丁目",c:"191313"},{n:"吉塚三丁目",c:"230378"},{n:"吉塚五丁目",c:"134404"},{n:"吉塚本町",c:"176845"},{n:"中洲一丁目",c:"091468"}];
-
             db[301] = [{n:"中洲二丁目",c:"176673"},{n:"中洲であい橋通り",c:"372730"}];
         }
 
-        let myCourse = localStorage.getItem('v33_course_id');
+        let myCourse = localStorage.getItem('v34_course') || 101;
         let idx = 0;
         let audioCtx = null;
         let worker = null;
 
+        // 【修正】即座に選択肢を生成する
         function updateCourseOptions() {
             const shift = document.getElementById('shift-in').value;
             const menu = document.getElementById('course-in');
@@ -190,31 +187,33 @@
             else { start = 301; end = 301; }
             for(let i=start; i<=end; i++) {
                 let o = document.createElement("option");
-                o.value = i; o.text = i + "コース";
+                o.value = i; o.text = i + " コース";
                 menu.add(o);
                 if(i == myCourse) o.selected = true;
             }
         }
 
-        function openSetup() { document.getElementById('setup-screen').style.display = "flex"; }
+        function openSetup() {
+            document.getElementById('setup-screen').style.display = "flex";
+            updateCourseOptions();
+        }
 
         async function applySettings() {
             myCourse = document.getElementById('course-in').value;
-            localStorage.setItem('v33_course_id', myCourse);
+            localStorage.setItem('v34_course', myCourse);
             document.getElementById('setup-screen').style.display = "none";
             idx = 0;
             ui();
-            if(!audioCtx) initAudio();
+            initAudio();
             if(!worker) initAI();
         }
 
         function initAudio() {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
 
         async function initAI() {
             const btn = document.getElementById('scan-main');
-            btn.innerText = "準備中...";
             worker = await Tesseract.createWorker();
             await worker.loadLanguage('eng');
             await worker.initialize('eng');
@@ -227,4 +226,64 @@
         function playSound(type) {
             if(!audioCtx) return;
             if(audioCtx.state === 'suspended') audioCtx.resume();
-            const now = audioCtx.
+            const now = audioCtx.currentTime;
+            const g = audioCtx.createGain(); g.connect(audioCtx.destination);
+            const o = audioCtx.createOscillator(); o.connect(g);
+            if(type === 'ok') { o.frequency.setValueAtTime(880, now); g.gain.setValueAtTime(0.1, now); o.start(); o.stop(now+0.2); }
+            else if(type === 'ng') { o.type = 'sawtooth'; o.frequency.setValueAtTime(100, now); g.gain.setValueAtTime(0.1, now); o.start(); o.stop(now+0.4); }
+            else { o.frequency.setValueAtTime(1200, now); g.gain.setValueAtTime(0.05, now); o.start(); o.stop(now+0.05); }
+        }
+
+        function ui() {
+            const item = db[myCourse][idx];
+            document.getElementById('top-id-display').innerText = `${myCourse} - ${String(idx + 1).padStart(2, '0')}`;
+            document.getElementById('code-label').innerText = item.c;
+            document.getElementById('name-label').innerText = item.n;
+        }
+
+        function stepShop(d) {
+            const list = db[myCourse];
+            idx = Math.max(0, Math.min(list.length - 1, idx + d));
+            ui();
+        }
+
+        async function cam() {
+            const v = document.getElementById('video');
+            const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            v.srcObject = s;
+        }
+
+        function handleScanButton() { playSound('start'); runScanner(); }
+
+        async function runScanner() {
+            const btn = document.getElementById('scan-main');
+            btn.disabled = true;
+            const v = document.getElementById('video');
+            const canvas = document.createElement('canvas');
+            canvas.width = 300; canvas.height = 80;
+            canvas.getContext('2d').drawImage(v, 0,0,300,80);
+            try {
+                const res = await Promise.race([worker.recognize(canvas), new Promise((_,r)=>setTimeout(()=>r(),3500))]);
+                checkResult(res.data.text.replace(/[^0-9]/g, ''));
+            } catch(e) { checkResult("??????"); }
+            btn.disabled = false;
+        }
+
+        function checkResult(input) {
+            const item = db[myCourse][idx];
+            const flash = document.getElementById('flash');
+            if(input.includes(item.c)) { playSound('ok'); flash.className="match"; }
+            else { playSound('ng'); flash.className="mismatch"; }
+            flash.style.opacity = 1;
+            setTimeout(()=> flash.style.opacity=0, 800);
+        }
+
+        window.onload = () => { 
+            genData(); 
+            // 起動時に確実に選択肢をセットする
+            updateCourseOptions(); 
+            cam();
+        };
+    </script>
+</body>
+</html>
