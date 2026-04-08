@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v1.9</title>
+    <title>Scanner VIOLET v1.10</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -26,11 +26,22 @@
             height: 100%; width: 100%; 
             overflow: hidden; 
             background: var(--bg);
+            position: fixed; /* 画面のバウンドを防止 */
             overscroll-behavior: none;
         }
 
         body { font-family: sans-serif; display: flex; flex-direction: column; }
         
+        /* 横向き時の警告オーバーレイ（カメラを壊さないための対策） */
+        #orientation-warning {
+            position: fixed; inset: 0; background: #6c5ce7; color: white;
+            z-index: 99999; display: none; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center;
+        }
+        @media screen and (orientation: landscape) {
+            #orientation-warning { display: flex; }
+        }
+
         .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; flex-shrink: 0; }
         .settings-btn { background: none; border: none; color: white; font-size: 35px; padding: 10px; cursor: pointer; }
         .course-title { font-size: 32px; flex-grow: 1; text-align: center; margin-right: 45px; }
@@ -45,7 +56,7 @@
         .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
         #video { width: 100%; height: 100%; object-fit: cover; }
         
-        .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 80px; border: 4px solid var(--purple-accent); border-radius: 12px; z-index: 500; }
+        .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 80px; border: 4px solid var(--purple-accent); border-radius: 12px; z-index: 500; pointer-events: none; }
         .guide-rect.step2 { border-color: #ff9f43; }
 
         #symbol-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 200px; font-weight: bold; pointer-events: none; z-index: 5000; opacity: 0; }
@@ -80,6 +91,11 @@
 </head>
 <body oncontextmenu="return false;">
 
+    <div id="orientation-warning">
+        <div style="font-size: 50px; margin-bottom: 20px;">📱</div>
+        <p style="font-size: 20px; font-weight: bold;">端末を縦にしてください<br><span style="font-size: 14px;">(スキャン機能を正常に保つため)</span></p>
+    </div>
+
     <div id="custom-popup">
         <div class="popup-card">
             <h3 id="popup-title">DETAILS</h3>
@@ -105,13 +121,13 @@
         <div class="list-container" id="history-container">
             <div class="delivery-list" id="delivery-list-ui"></div>
         </div>
-        <button onclick="document.getElementById('setup-screen').style.display='none';" style="margin-top:15px; width:100%; padding:15px; background:#666; color:#fff; border:none; border-radius:12px;">閉じる</button>
+        <button onclick="document.getElementById('setup-screen').style.display='none'; playSound('tap');" style="margin-top:15px; width:100%; padding:15px; background:#666; color:#fff; border:none; border-radius:12px;">閉じる</button>
     </div>
 
     <div id="symbol-overlay"></div>
     <div class="top-id-bar">
-        <button class="settings-btn" onclick="openSetup();">⚙</button>
-        <div id="top-id-display" class="course-title">VIOLET V1.9</div>
+        <button class="settings-btn" onclick="openSetup(); playSound('tap');">⚙</button>
+        <div id="top-id-display" class="course-title">VIOLET V1.10</div>
     </div>
 
     <div class="header">
@@ -128,9 +144,9 @@
     </div>
     
     <div class="footer">
-        <button class="btn-side" onclick="stepShop(-1);">◀</button>
+        <button class="btn-side" onclick="stepShop(-1); playSound('tap');">◀</button>
         <button id="scan-main" disabled onclick="toggleAutoScan()">待機中</button>
-        <button class="btn-side" onclick="stepShop(1);">▶</button>
+        <button class="btn-side" onclick="stepShop(1); playSound('tap');">▶</button>
     </div>
 
     <script>
@@ -138,21 +154,16 @@
         const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQkGW07X71K4ABtBqX4HI4mbH4D9fChVkM8eoBVpvlyG5Ga_7a6vL6o6Q1zIOpJBFOZ-P--mBMbAvto/pub?gid=0&single=true&output=csv";
 
         let myCourse = localStorage.getItem('v41_course_id') || "";
-        let idx = parseInt(localStorage.getItem('v19_idx')) || 0;
-        let scanStep = parseInt(localStorage.getItem('v19_step')) || 1; 
-        let historyData = JSON.parse(localStorage.getItem('v46_hist_v9') || '[]'); 
+        let idx = parseInt(localStorage.getItem('v110_idx')) || 0;
+        let scanStep = parseInt(localStorage.getItem('v110_step')) || 1; 
+        let historyData = JSON.parse(localStorage.getItem('v46_hist_v10') || '[]'); 
         
         let worker = null, isAutoScan = false, viewDayOffset = 0, audioCtx = null;
 
-        async function lockOrientation() {
-            if (screen.orientation && screen.orientation.lock) {
-                try { await screen.orientation.lock('portrait'); } catch(e) {}
-            }
-        }
-
         function formatDateJP(timestamp) {
             const d = new Date(timestamp);
-            return `${d.getMonth()+1}月${d.getDate()}日(${['日','月','火','水','木','金','土'][d.getDay()]})`;
+            const week = ['日','月','火','水','木','金','土'];
+            return `${d.getMonth()+1}月${d.getDate()}日(${week[d.getDay()]})`;
         }
 
         function getCurrentCycle() { return historyData.length > 0 ? historyData[0] : null; }
@@ -169,14 +180,15 @@
         }
 
         function saveHistory() { 
-            localStorage.setItem('v46_hist_v9', JSON.stringify(historyData)); 
+            localStorage.setItem('v46_hist_v10', JSON.stringify(historyData)); 
             localStorage.setItem('v41_course_id', myCourse);
-            localStorage.setItem('v19_idx', idx);
-            localStorage.setItem('v19_step', scanStep);
+            localStorage.setItem('v110_idx', idx);
+            localStorage.setItem('v110_step', scanStep);
         }
 
         function playSound(type) {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             const now = audioCtx.currentTime;
             const g = audioCtx.createGain(); g.connect(audioCtx.destination);
             const o = audioCtx.createOscillator(); o.connect(g);
@@ -323,11 +335,11 @@
                 }
                 if(idx === list.length - 1) {
                     cycle.isFinalized = true;
-                    showPopup("全行程終了", "お疲れ様でした。");
+                    showPopup("全行程終了", "本日の記録を確定しました。お疲れ様でした。");
                 }
             }
             idx = Math.max(0, Math.min(list.length - 1, idx + d));
-            scanStep = 1; saveHistory(); ui(); playSound('tap');
+            scanStep = 1; saveHistory(); ui();
         }
 
         function toggleAutoScan() {
@@ -410,14 +422,16 @@
             try {
                 const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } });
                 v.srcObject = s;
-                lockOrientation();
+                // JSでの向きロックは試行するが失敗してもカメラを止めない
+                if (screen.orientation && screen.orientation.lock) {
+                    try { await screen.orientation.lock('portrait'); } catch(e) {}
+                }
             } catch(e) {
-                alert("カメラ起動に失敗しました。ページを再読み込みしてください。");
+                alert("カメラの起動に失敗しました。ページを再読み込みしてください。");
             }
         }
 
         window.onload = () => { loadDataFromSheet(); cam(); };
-        window.addEventListener('resize', lockOrientation);
     </script>
 </body>
 </html>
