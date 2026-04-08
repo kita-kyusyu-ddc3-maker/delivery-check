@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v1.2</title>
+    <title>Scanner VIOLET v1.3</title>
+    
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <link rel="manifest" href="data:application/manifest+json,{'display':'standalone','name':'VIOLET PRO'}">
+    <link rel="manifest" href="data:application/manifest+json,{'display':'standalone','name':'VIOLET PRO','orientation':'portrait'}">
+
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -18,15 +20,21 @@
             --inner: inset 4px 4px 8px #d1d1d6, inset -4px -4px 8px #ffffff;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        
+        /* 横向き防止: 画面回転時にレイアウトを強制固定 */
+        @media screen and (orientation: landscape) {
+            body { transform: rotate(-90deg); transform-origin: left top; width: 100vh; height: 100vw; overflow: hidden; position: absolute; top: 100%; left: 0; }
+        }
+
         html, body { height: 100%; width: 100%; overflow: hidden; position: fixed; overscroll-behavior: none; }
         body { background: var(--bg); color: #000; font-family: sans-serif; display: flex; flex-direction: column; }
         
         .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; flex-shrink: 0; }
         .settings-btn { background: none; border: none; color: white; font-size: 35px; padding: 10px; cursor: pointer; }
-        .course-title { font-size: 38px; flex-grow: 1; text-align: center; margin-right: 45px; }
+        .course-title { font-size: 32px; flex-grow: 1; text-align: center; margin-right: 45px; }
 
         .header { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; text-align: center; }
-        .line-name { font-size: 32px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; width: 95%; overflow: hidden; }
+        .line-name { font-size: 30px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; width: 95%; overflow: hidden; }
         .line-code { font-size: 55px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; }
 
         #scan-step-label { font-size: 20px; font-weight: bold; color: #666; margin-bottom: 8px; background: #e0e0eb; padding: 4px 20px; border-radius: 12px; border: 1px solid #ccc; }
@@ -80,7 +88,7 @@
 
     <div id="setup-screen">
         <div class="setup-card">
-            <h2 style="margin-bottom:10px; text-align:center; font-size: 20px;">設定</h2>
+            <h2 style="margin-bottom:10px; text-align:center; font-size: 20px;">配送設定</h2>
             <select id="shift-in" onchange="updateCourseOptions(); playSound('tap');" style="width:100%; padding:12px; font-size:18px; margin-bottom:8px; border-radius:10px; border:1px solid #ccc;">
                 <option value="1">1便</option><option value="2">2便</option><option value="3">3便</option>
             </select>
@@ -89,9 +97,9 @@
         </div>
 
         <div class="history-tabs">
-            <button class="tab-btn active" id="tab-0" onclick="changeTab(0)">-</button>
-            <button class="tab-btn" id="tab-1" onclick="changeTab(1)">-</button>
-            <button class="tab-btn" id="tab-2" onclick="changeTab(2)">-</button>
+            <button class="tab-btn active" id="tab-0" onclick="changeTab(0)">今便</button>
+            <button class="tab-btn" id="tab-1" onclick="changeTab(1)">前回</button>
+            <button class="tab-btn" id="tab-2" onclick="changeTab(2)">前々回</button>
         </div>
         <div class="list-container" id="history-container">
             <div class="delivery-list" id="delivery-list-ui"></div>
@@ -103,7 +111,7 @@
     <div id="symbol-overlay"></div>
     <div class="top-id-bar">
         <button class="settings-btn" onclick="openSetup(); playSound('tap');">⚙</button>
-        <div id="top-id-display" class="course-title">VIOLET V1.2</div>
+        <div id="top-id-display" class="course-title">VIOLET V1.3</div>
     </div>
 
     <div class="header">
@@ -129,11 +137,11 @@
         let db = {}; 
         const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQkGW07X71K4ABtBqX4HI4mbH4D9fChVkM8eoBVpvlyG5Ga_7a6vL6o6Q1zIOpJBFOZ-P--mBMbAvto/pub?gid=0&single=true&output=csv";
 
-        // 電源オフ対策: 各種状態をlocalStorageから復元
+        // 状態復元
         let myCourse = localStorage.getItem('v41_course_id') || "";
-        let idx = parseInt(localStorage.getItem('v12_current_idx')) || 0;
-        let scanStep = parseInt(localStorage.getItem('v12_scan_step')) || 1; 
-        let historyData = JSON.parse(localStorage.getItem('v46_history') || '[]'); 
+        let idx = parseInt(localStorage.getItem('v13_current_idx')) || 0;
+        let scanStep = parseInt(localStorage.getItem('v13_scan_step')) || 1; 
+        let historyData = JSON.parse(localStorage.getItem('v46_history_v3') || '[]'); 
         
         let worker = null;
         let isAutoScan = false;
@@ -156,7 +164,8 @@
                 id: Date.now(),
                 course: myCourse,
                 shops: {},
-                completedCodes: [] // スキャン成功後に「次へ」を押した証跡
+                completedCodes: [],
+                isFinalized: false // 全店舗終了フラグ
             };
             historyData.unshift(newEntry);
             if(historyData.length > 3) historyData.pop();
@@ -164,9 +173,9 @@
         }
 
         function saveHistory() { 
-            localStorage.setItem('v46_history', JSON.stringify(historyData)); 
-            localStorage.setItem('v12_current_idx', idx);
-            localStorage.setItem('v12_scan_step', scanStep);
+            localStorage.setItem('v46_history_v3', JSON.stringify(historyData)); 
+            localStorage.setItem('v13_current_idx', idx);
+            localStorage.setItem('v13_scan_step', scanStep);
         }
 
         function playSound(type) {
@@ -256,7 +265,9 @@
         }
 
         function applySettings() {
-            myCourse = document.getElementById('course-in').value;
+            const newCourse = document.getElementById('course-in').value;
+            // 前の便が完了していない（isFinalizedでない）場合でも、新しい便を選んだら新しいサイクルを作る
+            myCourse = newCourse;
             localStorage.setItem('v41_course_id', myCourse);
             createNewCycle(); 
             document.getElementById('setup-screen').style.display = "none";
@@ -283,15 +294,11 @@
             const shops = db[entry.course] || [];
             shops.forEach((s, i) => {
                 const myShopHist = entry.shops[s.c] || [];
-                // ロジック修正: 照合成功履歴がある(myShopHist > 0) かつ 次の店舗へ進んでいる場合のみ✔
                 const isFinalized = entry.completedCodes.includes(s.c);
-                
                 const div = document.createElement('div');
                 div.className = `list-item ${isFinalized ? 'done' : ''}`;
-                
                 const statusMarker = isFinalized ? '✔' : '-';
                 const unitText = myShopHist.length > 0 ? myShopHist.length + '台' : statusMarker;
-
                 div.innerHTML = `<span>${statusMarker} ${i+1}. ${s.n}</span><span style='font-size:15px; color:#666;'>${unitText}</span>`;
                 div.onclick = () => {
                     playSound('tap');
@@ -331,18 +338,24 @@
             const cycle = getCurrentCycle();
             const currentShopCode = list[idx].c;
 
-            // 右ボタン(次へ)が押された時のみ、現在の店舗の照合履歴を確認して✔を確定させる
-            if(d === 1) {
+            if(d === 1) { // 次へボタン
+                // 1回以上成功していれば✔
                 if(cycle.shops[currentShopCode] && cycle.shops[currentShopCode].length > 0) {
                     if(!cycle.completedCodes.includes(currentShopCode)) {
                         cycle.completedCodes.push(currentShopCode);
                     }
                 }
+                
+                // コースの最後（最終店舗）で【▶】が押されたら「運用上の当日」を確定
+                if(idx === list.length - 1) {
+                    cycle.isFinalized = true;
+                    showPopup("全行程終了", "お疲れ様でした。本日の全店舗の配送が記録されました。");
+                }
             }
 
             idx = Math.max(0, Math.min(list.length - 1, idx + d));
-            scanStep = 1; // 店舗移動時はステップリセット
-            saveHistory(); // 状態を保存
+            scanStep = 1;
+            saveHistory();
             ui();
         }
 
@@ -395,13 +408,13 @@
             if(scanStep === 1) {
                 scanStep = 2; playSound('start'); if(navigator.vibrate) navigator.vibrate(100);
                 updateStepLabel();
-                saveHistory(); // ステップ状態を保存
+                saveHistory();
             } else {
                 saveRecord(targetCode);
                 showVisual(true); playSound('ok');
                 scanStep = 1; updateStepLabel();
                 if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
-                toggleAutoScan(); // シール成功で一旦停止
+                toggleAutoScan();
                 saveHistory();
             }
         }
