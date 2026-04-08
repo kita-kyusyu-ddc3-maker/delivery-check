@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v1.6</title>
+    <title>Scanner VIOLET v1.7</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <link rel="manifest" href="data:application/manifest+json,{'display':'standalone','name':'VIOLET PRO','short_name':'VIOLET','orientation':'portrait'}">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="data:application/manifest+json,{'display':'standalone','name':'VIOLET','orientation':'portrait','display_override':['fullscreen','standalone']}">
 
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
@@ -21,21 +22,28 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         
-        /* 強制縦固定ロジック: 横向きになったら中身を回転させる */
+        /* 【重要】CSSでの強制縦固定ロジック */
         @media screen and (orientation: landscape) {
-            body {
+            html, body {
+                width: 100vh !important;
+                height: 100vw !important;
+                overflow: hidden !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
                 transform: rotate(-90deg);
-                transform-origin: left top;
-                width: 100vh;
-                height: 100vw;
-                overflow: hidden;
-                position: absolute;
-                top: 100%;
-                left: 0;
+                transform-origin: top left;
+                margin-top: 100vh;
             }
         }
 
-        html, body { height: 100%; width: 100%; overflow: hidden; position: fixed; overscroll-behavior: none; }
+        html, body { 
+            height: 100%; width: 100%; 
+            overflow: hidden; 
+            position: fixed; 
+            overscroll-behavior: none;
+            touch-action: none; /* ブラウザの引っ張り更新を防止 */
+        }
         body { background: var(--bg); color: #000; font-family: sans-serif; display: flex; flex-direction: column; }
         
         .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; flex-shrink: 0; }
@@ -43,10 +51,10 @@
         .course-title { font-size: 32px; flex-grow: 1; text-align: center; margin-right: 45px; }
 
         .header { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; text-align: center; }
-        .line-name { font-size: 30px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; width: 95%; overflow: hidden; }
-        .line-code { font-size: 55px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; }
+        .line-name { font-size: 28px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; width: 95%; overflow: hidden; }
+        .line-code { font-size: 50px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; }
 
-        #scan-step-label { font-size: 20px; font-weight: bold; color: #666; margin-bottom: 8px; background: #e0e0eb; padding: 4px 20px; border-radius: 12px; border: 1px solid #ccc; }
+        #scan-step-label { font-size: 18px; font-weight: bold; color: #666; margin-bottom: 5px; background: #e0e0eb; padding: 4px 20px; border-radius: 12px; border: 1px solid #ccc; }
 
         #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; display: flex; align-items: center; justify-content: center; }
         .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
@@ -64,7 +72,7 @@
         .animate-symbol { animation: floatUp 0.8s ease-out forwards; }
 
         #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: none; flex-direction: column; padding: 20px; padding-top: 50px; }
-        .setup-card { background: #fff; padding: 20px; border-radius: 25px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-bottom: 15px; flex-shrink: 0; }
+        .setup-card { background: #fff; padding: 15px; border-radius: 20px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-bottom: 15px; flex-shrink: 0; }
         
         .history-tabs { display: flex; justify-content: space-around; background: #ddd; border-radius: 15px 15px 0 0; overflow: hidden; }
         .tab-btn { flex: 1; padding: 12px; border: none; background: none; font-weight: bold; color: #777; font-size: 13px; }
@@ -79,9 +87,9 @@
         .popup-content { margin: 20px 0; font-size: 17px; line-height: 1.5; white-space: pre-wrap; text-align: left; max-height: 250px; overflow-y: auto; }
 
         .footer { height: 32vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 10px; flex-shrink: 0; }
-        .btn-side { width: 80px; height: 80px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 45px; display: flex; align-items: center; justify-content: center; outline: none; }
-        #scan-main { width: 150px; height: 150px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 20px; font-weight: 900; outline: none; transition: 0.2s; }
-        #scan-main.ready { background: var(--bg); color: var(--purple-accent); font-size: 28px; }
+        .btn-side { width: 75px; height: 75px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 40px; display: flex; align-items: center; justify-content: center; outline: none; }
+        #scan-main { width: 145px; height: 145px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 20px; font-weight: 900; outline: none; transition: 0.2s; }
+        #scan-main.ready { background: var(--bg); color: var(--purple-accent); font-size: 26px; }
         #scan-main.active { background: var(--purple-accent); color: #fff; box-shadow: var(--inner); }
     </style>
 </head>
@@ -97,14 +105,13 @@
 
     <div id="setup-screen">
         <div class="setup-card">
-            <h2 style="margin-bottom:10px; text-align:center; font-size: 20px;">設定</h2>
-            <select id="shift-in" onchange="updateCourseOptions(); playSound('tap');" style="width:100%; padding:12px; font-size:18px; margin-bottom:8px; border-radius:10px; border:1px solid #ccc;">
+            <h2 style="margin-bottom:10px; text-align:center; font-size: 20px;">配送設定</h2>
+            <select id="shift-in" onchange="updateCourseOptions();" style="width:100%; padding:12px; font-size:18px; margin-bottom:8px; border-radius:10px;">
                 <option value="1">1便</option><option value="2">2便</option><option value="3">3便</option>
             </select>
-            <select id="course-in" onchange="playSound('tap');" style="width:100%; padding:12px; font-size:18px; margin-bottom:10px; border-radius:10px; border:1px solid #ccc;"></select>
-            <button onclick="applySettings(); playSound('tap');" style="width:100%; height:50px; background:var(--purple-accent); color:#fff; border:none; border-radius:12px; font-size:18px; font-weight:bold;">設定を確定</button>
+            <select id="course-in" style="width:100%; padding:12px; font-size:18px; margin-bottom:10px; border-radius:10px;"></select>
+            <button onclick="applySettings();" style="width:100%; height:50px; background:var(--purple-accent); color:#fff; border:none; border-radius:12px; font-size:18px; font-weight:bold;">設定を確定</button>
         </div>
-
         <div class="history-tabs">
             <button class="tab-btn active" id="tab-0" onclick="changeTab(0)">-</button>
             <button class="tab-btn" id="tab-1" onclick="changeTab(1)">-</button>
@@ -113,14 +120,13 @@
         <div class="list-container" id="history-container">
             <div class="delivery-list" id="delivery-list-ui"></div>
         </div>
-        
-        <button onclick="document.getElementById('setup-screen').style.display='none'; playSound('tap');" style="margin-top:15px; width:100%; padding:15px; background:#666; color:#fff; border:none; border-radius:12px; flex-shrink:0;">閉じる</button>
+        <button onclick="document.getElementById('setup-screen').style.display='none';" style="margin-top:15px; width:100%; padding:15px; background:#666; color:#fff; border:none; border-radius:12px;">閉じる</button>
     </div>
 
     <div id="symbol-overlay"></div>
     <div class="top-id-bar">
-        <button class="settings-btn" onclick="openSetup(); playSound('tap');">⚙</button>
-        <div id="top-id-display" class="course-title">VIOLET V1.6</div>
+        <button class="settings-btn" onclick="openSetup();">⚙</button>
+        <div id="top-id-display" class="course-title">VIOLET V1.7</div>
     </div>
 
     <div class="header">
@@ -137,46 +143,40 @@
     </div>
     
     <div class="footer">
-        <button class="btn-side" onclick="stepShop(-1); playSound('tap');">◀</button>
+        <button class="btn-side" onclick="stepShop(-1);">◀</button>
         <button id="scan-main" disabled onclick="toggleAutoScan()">待機中</button>
-        <button class="btn-side" onclick="stepShop(1); playSound('tap');">▶</button>
+        <button class="btn-side" onclick="stepShop(1);">▶</button>
     </div>
 
     <script>
         let db = {}; 
         const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQkGW07X71K4ABtBqX4HI4mbH4D9fChVkM8eoBVpvlyG5Ga_7a6vL6o6Q1zIOpJBFOZ-P--mBMbAvto/pub?gid=0&single=true&output=csv";
 
-        // 状態復元
         let myCourse = localStorage.getItem('v41_course_id') || "";
-        let idx = parseInt(localStorage.getItem('v16_current_idx')) || 0;
-        let scanStep = parseInt(localStorage.getItem('v16_scan_step')) || 1; 
-        let historyData = JSON.parse(localStorage.getItem('v46_history_v6') || '[]'); 
+        let idx = parseInt(localStorage.getItem('v17_current_idx')) || 0;
+        let scanStep = parseInt(localStorage.getItem('v17_scan_step')) || 1; 
+        let historyData = JSON.parse(localStorage.getItem('v46_history_v7') || '[]'); 
         
-        let worker = null;
-        let isAutoScan = false;
-        let viewDayOffset = 0; 
-        let audioCtx = null;
+        let worker = null, isAutoScan = false, viewDayOffset = 0, audioCtx = null;
+
+        // 【縦固定強制ロジック】
+        async function forcePortrait() {
+            if (screen.orientation && screen.orientation.lock) {
+                try { await screen.orientation.lock('portrait-primary'); } catch(e) {}
+            }
+        }
 
         function formatDateJP(timestamp) {
             const d = new Date(timestamp);
-            const week = ['日','月','火','水','木','金','土'];
-            return `${d.getMonth()+1}月${d.getDate()}日(${week[d.getDay()]})`;
+            return `${d.getMonth()+1}月${d.getDate()}日(${['日','月','火','水','木','金','土'][d.getDay()]})`;
         }
 
-        function getCurrentCycle() {
-            return historyData.length > 0 ? historyData[0] : null;
-        }
+        function getCurrentCycle() { return historyData.length > 0 ? historyData[0] : null; }
 
         function ensureCycle() {
             let cycle = getCurrentCycle();
             if (!cycle || cycle.isFinalized) {
-                cycle = {
-                    id: Date.now(),
-                    course: myCourse,
-                    shops: {},
-                    completedCodes: [],
-                    isFinalized: false
-                };
+                cycle = { id: Date.now(), course: myCourse, shops: {}, completedCodes: [], isFinalized: false };
                 historyData.unshift(cycle);
                 if(historyData.length > 3) historyData.pop();
                 saveHistory();
@@ -185,15 +185,14 @@
         }
 
         function saveHistory() { 
-            localStorage.setItem('v46_history_v6', JSON.stringify(historyData)); 
+            localStorage.setItem('v46_history_v7', JSON.stringify(historyData)); 
             localStorage.setItem('v41_course_id', myCourse);
-            localStorage.setItem('v16_current_idx', idx);
-            localStorage.setItem('v16_scan_step', scanStep);
+            localStorage.setItem('v17_current_idx', idx);
+            localStorage.setItem('v17_scan_step', scanStep);
         }
 
         function playSound(type) {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
             const now = audioCtx.currentTime;
             const g = audioCtx.createGain(); g.connect(audioCtx.destination);
             const o = audioCtx.createOscillator(); o.connect(g);
@@ -220,17 +219,6 @@
             document.getElementById('custom-popup').style.display = "flex";
         }
         function closePopup() { document.getElementById('custom-popup').style.display = "none"; }
-
-        // 強制的に縦画面をロックする関数
-        async function lockOrientation() {
-            try {
-                if (screen.orientation && screen.orientation.lock) {
-                    await screen.orientation.lock('portrait');
-                }
-            } catch (e) {
-                console.log("Orientation lock not supported or failed.");
-            }
-        }
 
         async function loadDataFromSheet() {
             try {
@@ -266,33 +254,28 @@
 
         function openSetup() {
             document.getElementById('setup-screen').style.display = "flex";
-            updateCourseOptions();
-            updateTabLabels();
-            changeTab(0);
+            updateCourseOptions(); updateTabLabels(); changeTab(0);
         }
 
         function updateTabLabels() {
             for(let i=0; i<3; i++) {
                 const btn = document.getElementById(`tab-${i}`);
                 const entry = historyData[i];
-                if(entry) { btn.innerText = formatDateJP(entry.id); } 
-                else { btn.innerText = "-/-"; }
+                btn.innerText = entry ? formatDateJP(entry.id) : "-/-";
             }
         }
 
         function changeTab(day) {
             viewDayOffset = day;
-            document.querySelectorAll('.tab-btn').forEach((b, i) => {
-                b.classList.toggle('active', i === day);
-            });
+            document.querySelectorAll('.tab-btn').forEach((b, i) => { b.classList.toggle('active', i === day); });
             renderList();
         }
 
         function applySettings() {
             myCourse = document.getElementById('course-in').value;
-            document.getElementById('setup-screen').style.display = "none";
-            idx = 0; scanStep = 1;
-            saveHistory(); ui();
+            playSound('tap');
+            document.getElementById('setup-screen').style.display = 'none';
+            idx = 0; scanStep = 1; saveHistory(); ui();
         }
 
         async function initAI() {
@@ -308,7 +291,6 @@
             listUi.innerHTML = "";
             const entry = historyData[viewDayOffset];
             if(!entry) { listUi.innerHTML = "<div style='text-align:center; padding:20px; color:#999;'>記録なし</div>"; return; }
-
             const shops = db[entry.course] || [];
             shops.forEach((s, i) => {
                 const myShopHist = entry.shops[s.c] || [];
@@ -316,13 +298,11 @@
                 const div = document.createElement('div');
                 div.className = `list-item ${isFinalized ? 'done' : ''}`;
                 const statusMarker = isFinalized ? '✔' : '-';
-                const unitText = myShopHist.length > 0 ? myShopHist.length + '台' : statusMarker;
-                div.innerHTML = `<span>${statusMarker} ${i+1}. ${s.n}</span><span style='font-size:15px; color:#666;'>${unitText}</span>`;
+                div.innerHTML = `<span>${statusMarker} ${i+1}. ${s.n}</span><span style='font-size:15px; color:#666;'>${myShopHist.length > 0 ? myShopHist.length + '台' : statusMarker}</span>`;
                 div.onclick = () => {
                     playSound('tap');
-                    if(myShopHist.length > 0) {
-                        showPopup(s.n, `納品日: ${formatDateJP(entry.id)}\n履歴:\n` + myShopHist.map(h => `・${h.time}`).join("\n"));
-                    } else { showPopup(s.n, `納品データはありません`); }
+                    if(myShopHist.length > 0) showPopup(s.n, `納品日: ${formatDateJP(entry.id)}\n履歴:\n` + myShopHist.map(h => `・${h.time}`).join("\n"));
+                    else showPopup(s.n, `記録なし`);
                 };
                 listUi.appendChild(div);
             });
@@ -355,9 +335,7 @@
             if(d === 1 && cycle) {
                 const currentShopCode = list[idx].c;
                 if(cycle.shops[currentShopCode] && cycle.shops[currentShopCode].length > 0) {
-                    if(!cycle.completedCodes.includes(currentShopCode)) {
-                        cycle.completedCodes.push(currentShopCode);
-                    }
+                    if(!cycle.completedCodes.includes(currentShopCode)) cycle.completedCodes.push(currentShopCode);
                 }
                 if(idx === list.length - 1) {
                     cycle.isFinalized = true;
@@ -365,14 +343,14 @@
                 }
             }
             idx = Math.max(0, Math.min(list.length - 1, idx + d));
-            scanStep = 1; saveHistory(); ui();
+            scanStep = 1; saveHistory(); ui(); playSound('tap');
         }
 
         function toggleAutoScan() {
             isAutoScan = !isAutoScan;
             const btn = document.getElementById('scan-main');
             if(isAutoScan) {
-                lockOrientation(); // スキャン開始時に画面をロック
+                forcePortrait();
                 playSound('start'); btn.innerText = "STOP"; btn.classList.add('active');
                 runScannerLoop();
             } else {
@@ -390,14 +368,12 @@
             const sy = (v.videoHeight - 80 * scale) / 2;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(v, sx, sy, 180 * scale, 80 * scale, 0, 0, 180, 80);
-
             let imageData = ctx.getImageData(0,0,180,80);
             for(let i=0; i<imageData.data.length; i+=4) {
                 let g = imageData.data[i]*0.3 + imageData.data[i+1]*0.59 + imageData.data[i+2]*0.11;
                 imageData.data[i] = imageData.data[i+1] = imageData.data[i+2] = g > 125 ? 255 : 0;
             }
             ctx.putImageData(imageData, 0, 0);
-
             try {
                 const res = await worker.recognize(canvas);
                 const txt = res.data.text.replace(/[^0-9]/g, '');
@@ -451,12 +427,12 @@
             try {
                 const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } });
                 v.srcObject = s;
-                lockOrientation(); // 起動時に画面をロック試行
+                forcePortrait();
             } catch(e) {}
         }
 
         window.onload = () => { loadDataFromSheet(); cam(); };
-        window.addEventListener('resize', lockOrientation); // リサイズ時にも再試行
+        window.addEventListener('resize', forcePortrait);
     </script>
 </body>
 </html>
