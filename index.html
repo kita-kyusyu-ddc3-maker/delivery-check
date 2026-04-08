@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v1.4</title>
+    <title>Scanner VIOLET v1.5</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -110,7 +110,7 @@
     <div id="symbol-overlay"></div>
     <div class="top-id-bar">
         <button class="settings-btn" onclick="openSetup(); playSound('tap');">⚙</button>
-        <div id="top-id-display" class="course-title">VIOLET V1.4</div>
+        <div id="top-id-display" class="course-title">VIOLET V1.5</div>
     </div>
 
     <div class="header">
@@ -138,9 +138,9 @@
 
         // 状態復元
         let myCourse = localStorage.getItem('v41_course_id') || "";
-        let idx = parseInt(localStorage.getItem('v14_current_idx')) || 0;
-        let scanStep = parseInt(localStorage.getItem('v14_scan_step')) || 1; 
-        let historyData = JSON.parse(localStorage.getItem('v46_history_v4') || '[]'); 
+        let idx = parseInt(localStorage.getItem('v15_current_idx')) || 0;
+        let scanStep = parseInt(localStorage.getItem('v15_scan_step')) || 1; 
+        let historyData = JSON.parse(localStorage.getItem('v46_history_v5') || '[]'); 
         
         let worker = null;
         let isAutoScan = false;
@@ -153,30 +153,36 @@
             return `${d.getMonth()+1}月${d.getDate()}日(${week[d.getDay()]})`;
         }
 
-        // 修正: 起動時には自動作成しない
+        // 修正: 最新の履歴枠を取得。全終了していれば null
         function getCurrentCycle() {
-            return historyData.length > 0 ? historyData[0] : null;
+            if (historyData.length === 0) return null;
+            const latest = historyData[0];
+            return latest.isFinalized ? null : latest;
         }
 
-        // 修正: サイクル作成は明示的なアクション時のみ
-        function createNewCycle() {
-            const newEntry = {
-                id: Date.now(),
-                course: myCourse,
-                shops: {},
-                completedCodes: [],
-                isFinalized: false
-            };
-            historyData.unshift(newEntry);
-            if(historyData.length > 3) historyData.pop();
-            saveHistory();
+        // 修正: 実際の「記録」が発生するまでフォルダは作らない
+        function ensureCycle() {
+            let cycle = getCurrentCycle();
+            if (!cycle) {
+                cycle = {
+                    id: Date.now(),
+                    course: myCourse,
+                    shops: {},
+                    completedCodes: [],
+                    isFinalized: false
+                };
+                historyData.unshift(cycle);
+                if(historyData.length > 3) historyData.pop();
+                saveHistory();
+            }
+            return cycle;
         }
 
         function saveHistory() { 
-            localStorage.setItem('v46_history_v4', JSON.stringify(historyData)); 
+            localStorage.setItem('v46_history_v5', JSON.stringify(historyData)); 
             localStorage.setItem('v41_course_id', myCourse);
-            localStorage.setItem('v14_current_idx', idx);
-            localStorage.setItem('v14_scan_step', scanStep);
+            localStorage.setItem('v15_current_idx', idx);
+            localStorage.setItem('v15_scan_step', scanStep);
         }
 
         function playSound(type) {
@@ -266,10 +272,8 @@
         }
 
         function applySettings() {
-            const newCourse = document.getElementById('course-in').value;
-            myCourse = newCourse;
-            // 明示的に新しいサイクルを作成
-            createNewCycle(); 
+            // 修正: 設定確定時はコースを変えるだけ。履歴フォルダは作らない。
+            myCourse = document.getElementById('course-in').value;
             document.getElementById('setup-screen').style.display = "none";
             idx = 0; 
             scanStep = 1;
@@ -336,13 +340,9 @@
         function stepShop(d) {
             const list = db[myCourse];
             const cycle = getCurrentCycle();
-            if(!cycle) { // サイクルがない場合（初回起動など）は移動のみ
-                idx = Math.max(0, Math.min(list.length - 1, idx + d));
-                ui(); return;
-            }
-
-            const currentShopCode = list[idx].c;
-            if(d === 1) { 
+            
+            if(d === 1 && cycle) { // 次へボタン 且つ 履歴フォルダが存在する場合
+                const currentShopCode = list[idx].c;
                 if(cycle.shops[currentShopCode] && cycle.shops[currentShopCode].length > 0) {
                     if(!cycle.completedCodes.includes(currentShopCode)) {
                         cycle.completedCodes.push(currentShopCode);
@@ -406,6 +406,10 @@
                 return;
             }
             lastCheckTime = now;
+            
+            // 修正: 成功したタイミングでサイクルがなければ作成
+            ensureCycle();
+
             if(scanStep === 1) {
                 scanStep = 2; playSound('start'); if(navigator.vibrate) navigator.vibrate(100);
                 updateStepLabel();
@@ -422,10 +426,7 @@
         let lastCheckTime = 0;
 
         function saveRecord(code) {
-            let cycle = getCurrentCycle();
-            // スキャン成功時にサイクルがなければ作成
-            if(!cycle) { createNewCycle(); cycle = historyData[0]; }
-            
+            const cycle = ensureCycle();
             const timeStr = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
             if(!cycle.shops[code]) cycle.shops[code] = [];
             cycle.shops[code].push({ time: timeStr });
