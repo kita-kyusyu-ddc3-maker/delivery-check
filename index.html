@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Scanner VIOLET v1.5</title>
+    <title>Scanner VIOLET v1.6</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <link rel="manifest" href="data:application/manifest+json,{'display':'standalone','name':'VIOLET PRO','orientation':'portrait'}">
+    <link rel="manifest" href="data:application/manifest+json,{'display':'standalone','name':'VIOLET PRO','short_name':'VIOLET','orientation':'portrait'}">
 
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
@@ -21,8 +21,18 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         
+        /* 強制縦固定ロジック: 横向きになったら中身を回転させる */
         @media screen and (orientation: landscape) {
-            body { transform: rotate(-90deg); transform-origin: left top; width: 100vh; height: 100vw; overflow: hidden; position: absolute; top: 100%; left: 0; }
+            body {
+                transform: rotate(-90deg);
+                transform-origin: left top;
+                width: 100vh;
+                height: 100vw;
+                overflow: hidden;
+                position: absolute;
+                top: 100%;
+                left: 0;
+            }
         }
 
         html, body { height: 100%; width: 100%; overflow: hidden; position: fixed; overscroll-behavior: none; }
@@ -87,7 +97,7 @@
 
     <div id="setup-screen">
         <div class="setup-card">
-            <h2 style="margin-bottom:10px; text-align:center; font-size: 20px;">配送設定</h2>
+            <h2 style="margin-bottom:10px; text-align:center; font-size: 20px;">設定</h2>
             <select id="shift-in" onchange="updateCourseOptions(); playSound('tap');" style="width:100%; padding:12px; font-size:18px; margin-bottom:8px; border-radius:10px; border:1px solid #ccc;">
                 <option value="1">1便</option><option value="2">2便</option><option value="3">3便</option>
             </select>
@@ -110,7 +120,7 @@
     <div id="symbol-overlay"></div>
     <div class="top-id-bar">
         <button class="settings-btn" onclick="openSetup(); playSound('tap');">⚙</button>
-        <div id="top-id-display" class="course-title">VIOLET V1.5</div>
+        <div id="top-id-display" class="course-title">VIOLET V1.6</div>
     </div>
 
     <div class="header">
@@ -138,9 +148,9 @@
 
         // 状態復元
         let myCourse = localStorage.getItem('v41_course_id') || "";
-        let idx = parseInt(localStorage.getItem('v15_current_idx')) || 0;
-        let scanStep = parseInt(localStorage.getItem('v15_scan_step')) || 1; 
-        let historyData = JSON.parse(localStorage.getItem('v46_history_v5') || '[]'); 
+        let idx = parseInt(localStorage.getItem('v16_current_idx')) || 0;
+        let scanStep = parseInt(localStorage.getItem('v16_scan_step')) || 1; 
+        let historyData = JSON.parse(localStorage.getItem('v46_history_v6') || '[]'); 
         
         let worker = null;
         let isAutoScan = false;
@@ -153,17 +163,13 @@
             return `${d.getMonth()+1}月${d.getDate()}日(${week[d.getDay()]})`;
         }
 
-        // 修正: 最新の履歴枠を取得。全終了していれば null
         function getCurrentCycle() {
-            if (historyData.length === 0) return null;
-            const latest = historyData[0];
-            return latest.isFinalized ? null : latest;
+            return historyData.length > 0 ? historyData[0] : null;
         }
 
-        // 修正: 実際の「記録」が発生するまでフォルダは作らない
         function ensureCycle() {
             let cycle = getCurrentCycle();
-            if (!cycle) {
+            if (!cycle || cycle.isFinalized) {
                 cycle = {
                     id: Date.now(),
                     course: myCourse,
@@ -179,10 +185,10 @@
         }
 
         function saveHistory() { 
-            localStorage.setItem('v46_history_v5', JSON.stringify(historyData)); 
+            localStorage.setItem('v46_history_v6', JSON.stringify(historyData)); 
             localStorage.setItem('v41_course_id', myCourse);
-            localStorage.setItem('v15_current_idx', idx);
-            localStorage.setItem('v15_scan_step', scanStep);
+            localStorage.setItem('v16_current_idx', idx);
+            localStorage.setItem('v16_scan_step', scanStep);
         }
 
         function playSound(type) {
@@ -214,6 +220,17 @@
             document.getElementById('custom-popup').style.display = "flex";
         }
         function closePopup() { document.getElementById('custom-popup').style.display = "none"; }
+
+        // 強制的に縦画面をロックする関数
+        async function lockOrientation() {
+            try {
+                if (screen.orientation && screen.orientation.lock) {
+                    await screen.orientation.lock('portrait');
+                }
+            } catch (e) {
+                console.log("Orientation lock not supported or failed.");
+            }
+        }
 
         async function loadDataFromSheet() {
             try {
@@ -272,13 +289,10 @@
         }
 
         function applySettings() {
-            // 修正: 設定確定時はコースを変えるだけ。履歴フォルダは作らない。
             myCourse = document.getElementById('course-in').value;
             document.getElementById('setup-screen').style.display = "none";
-            idx = 0; 
-            scanStep = 1;
-            saveHistory();
-            ui();
+            idx = 0; scanStep = 1;
+            saveHistory(); ui();
         }
 
         async function initAI() {
@@ -308,9 +322,7 @@
                     playSound('tap');
                     if(myShopHist.length > 0) {
                         showPopup(s.n, `納品日: ${formatDateJP(entry.id)}\n履歴:\n` + myShopHist.map(h => `・${h.time}`).join("\n"));
-                    } else {
-                        showPopup(s.n, `納品データはありません`);
-                    }
+                    } else { showPopup(s.n, `納品データはありません`); }
                 };
                 listUi.appendChild(div);
             });
@@ -340,8 +352,7 @@
         function stepShop(d) {
             const list = db[myCourse];
             const cycle = getCurrentCycle();
-            
-            if(d === 1 && cycle) { // 次へボタン 且つ 履歴フォルダが存在する場合
+            if(d === 1 && cycle) {
                 const currentShopCode = list[idx].c;
                 if(cycle.shops[currentShopCode] && cycle.shops[currentShopCode].length > 0) {
                     if(!cycle.completedCodes.includes(currentShopCode)) {
@@ -350,20 +361,18 @@
                 }
                 if(idx === list.length - 1) {
                     cycle.isFinalized = true;
-                    showPopup("全行程終了", "お疲れ様でした。本日の全店舗の配送が記録されました。");
+                    showPopup("全行程終了", "お疲れ様でした。本日の記録を確定しました。");
                 }
             }
-
             idx = Math.max(0, Math.min(list.length - 1, idx + d));
-            scanStep = 1;
-            saveHistory();
-            ui();
+            scanStep = 1; saveHistory(); ui();
         }
 
         function toggleAutoScan() {
             isAutoScan = !isAutoScan;
             const btn = document.getElementById('scan-main');
             if(isAutoScan) {
+                lockOrientation(); // スキャン開始時に画面をロック
                 playSound('start'); btn.innerText = "STOP"; btn.classList.add('active');
                 runScannerLoop();
             } else {
@@ -385,7 +394,7 @@
             let imageData = ctx.getImageData(0,0,180,80);
             for(let i=0; i<imageData.data.length; i+=4) {
                 let g = imageData.data[i]*0.3 + imageData.data[i+1]*0.59 + imageData.data[i+2]*0.11;
-                imageData.data[i] = imageData.data[i+1] = imageData.data[i+2] = g > 120 ? 255 : 0;
+                imageData.data[i] = imageData.data[i+1] = imageData.data[i+2] = g > 125 ? 255 : 0;
             }
             ctx.putImageData(imageData, 0, 0);
 
@@ -406,21 +415,16 @@
                 return;
             }
             lastCheckTime = now;
-            
-            // 修正: 成功したタイミングでサイクルがなければ作成
             ensureCycle();
-
             if(scanStep === 1) {
                 scanStep = 2; playSound('start'); if(navigator.vibrate) navigator.vibrate(100);
-                updateStepLabel();
-                saveHistory();
+                updateStepLabel(); saveHistory();
             } else {
                 saveRecord(targetCode);
                 showVisual(true); playSound('ok');
                 scanStep = 1; updateStepLabel();
                 if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
-                toggleAutoScan();
-                saveHistory();
+                toggleAutoScan(); saveHistory();
             }
         }
         let lastCheckTime = 0;
@@ -430,8 +434,7 @@
             const timeStr = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
             if(!cycle.shops[code]) cycle.shops[code] = [];
             cycle.shops[code].push({ time: timeStr });
-            saveHistory();
-            ui();
+            saveHistory(); ui();
         }
 
         function showVisual(isOk) {
@@ -448,10 +451,12 @@
             try {
                 const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } });
                 v.srcObject = s;
+                lockOrientation(); // 起動時に画面をロック試行
             } catch(e) {}
         }
 
         window.onload = () => { loadDataFromSheet(); cam(); };
+        window.addEventListener('resize', lockOrientation); // リサイズ時にも再試行
     </script>
 </body>
 </html>
