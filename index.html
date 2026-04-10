@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DDC Scanner v1.12</title>
+    <title>DDC Scanner v1.13</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -116,9 +116,9 @@
     <script>
         let db = {}; const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQkGW07X71K4ABtBqX4HI4mbH4D9fChVkM8eoBVpvlyG5Ga_7a6vL6o6Q1zIOpJBFOZ-P--mBMbAvto/pub?gid=0&single=true&output=csv";
         let myCourse = localStorage.getItem('v41_course_id') || "";
-        let idx = parseInt(localStorage.getItem('v112_idx')) || 0;
-        let scanStep = parseInt(localStorage.getItem('v112_step')) || 1; 
-        let historyData = JSON.parse(localStorage.getItem('v46_hist_v12') || '[]'); 
+        let idx = parseInt(localStorage.getItem('v113_idx')) || 0;
+        let scanStep = parseInt(localStorage.getItem('v113_step')) || 1; 
+        let historyData = JSON.parse(localStorage.getItem('v46_hist_v13') || '[]'); 
         let worker = null, isAutoScan = false, viewDayOffset = 0, audioCtx = null;
 
         function formatDateJP(timestamp) { const d = new Date(timestamp); return `${d.getMonth()+1}月${d.getDate()}日(${['日','月','火','水','木','金','土'][d.getDay()]})`; }
@@ -128,19 +128,33 @@
             if (!cycle || cycle.isFinalized) { cycle = { id: Date.now(), course: myCourse, shops: {}, completedCodes: [], isFinalized: false }; historyData.unshift(cycle); if(historyData.length > 3) historyData.pop(); saveHistory(); }
             return cycle;
         }
-        function saveHistory() { localStorage.setItem('v46_hist_v12', JSON.stringify(historyData)); localStorage.setItem('v41_course_id', myCourse); localStorage.setItem('v112_idx', idx); localStorage.setItem('v112_step', scanStep); }
+        function saveHistory() { localStorage.setItem('v46_hist_v13', JSON.stringify(historyData)); localStorage.setItem('v41_course_id', myCourse); localStorage.setItem('v113_idx', idx); localStorage.setItem('v113_step', scanStep); }
 
         function playSound(type) {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            const now = audioCtx.currentTime; const g = audioCtx.createGain(); g.connect(audioCtx.destination); const o = audioCtx.createOscillator(); o.connect(g);
-            if (type === 'ok') { // ピンポーン
-                o.type = 'sine'; o.frequency.setValueAtTime(660, now); o.frequency.exponentialRampToValueAtTime(880, now + 0.1); g.gain.setValueAtTime(0.2, now); g.gain.linearRampToValueAtTime(0, now + 0.5); o.start(); o.stop(now + 0.5);
-                const o2 = audioCtx.createOscillator(); const g2 = audioCtx.createGain(); o2.connect(g2); g2.connect(audioCtx.destination); o2.type = 'sine'; o2.frequency.setValueAtTime(660, now + 0.12); o2.frequency.exponentialRampToValueAtTime(880, now + 0.22); g2.gain.setValueAtTime(0.2, now + 0.12); g2.gain.linearRampToValueAtTime(0, now + 0.62); o2.start(now + 0.12); o2.stop(now + 0.62);
+            const now = audioCtx.currentTime; const g = audioCtx.createGain(); g.connect(audioCtx.destination);
+            if (type === 'ok') { // 改良版ピンポーン
+                const o1 = audioCtx.createOscillator(); const g1 = audioCtx.createGain();
+                o1.connect(g1); g1.connect(audioCtx.destination);
+                o1.type = 'sine'; o1.frequency.setValueAtTime(659.25, now); // ミ
+                g1.gain.setValueAtTime(0, now); g1.gain.linearRampToValueAtTime(0.2, now + 0.05);
+                g1.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                o1.start(now); o1.stop(now + 0.4);
+                
+                const o2 = audioCtx.createOscillator(); const g2 = audioCtx.createGain();
+                o2.connect(g2); g2.connect(audioCtx.destination);
+                o2.type = 'sine'; o2.frequency.setValueAtTime(523.25, now + 0.12); // ド
+                g2.gain.setValueAtTime(0, now + 0.12); g2.gain.linearRampToValueAtTime(0.2, now + 0.17);
+                g2.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                o2.start(now + 0.12); o2.stop(now + 0.6);
             } else if (type === 'ng') { // ブッブー
+                const o = audioCtx.createOscillator(); o.connect(g);
                 o.type = 'sawtooth'; o.frequency.setValueAtTime(140, now); g.gain.setValueAtTime(0.2, now); g.gain.linearRampToValueAtTime(0, now + 0.4); o.start(); o.stop(now + 0.4);
-                const o2 = audioCtx.createOscillator(); const g2 = audioCtx.createGain(); o2.connect(g2); g2.connect(audioCtx.destination); o2.type = 'sawtooth'; o2.frequency.setValueAtTime(140, now + 0.1); g2.gain.setValueAtTime(0.2, now + 0.1); g2.gain.linearRampToValueAtTime(0, now + 0.5); o2.start(now + 0.1); o2.stop(now + 0.5);
-            } else if (type === 'tap' || type === 'start') { o.type = 'sine'; o.frequency.setValueAtTime(1500, now); g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.05); o.start(); o.stop(now + 0.05); }
+                const o2 = audioCtx.createOscillator(); const g2 = audioCtx.createGain(); o2.connect(g2); g2.connect(audioCtx.destination); o2.type = 'sawtooth'; o2.frequency.setValueAtTime(130, now + 0.08); g2.gain.setValueAtTime(0.2, now + 0.08); g2.gain.linearRampToValueAtTime(0, now + 0.48); o2.start(now + 0.08); o2.stop(now + 0.48);
+            } else if (type === 'tap' || type === 'start') {
+                const o = audioCtx.createOscillator(); o.connect(g); o.type = 'sine'; o.frequency.setValueAtTime(1500, now); g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.05); o.start(); o.stop(now + 0.05);
+            }
         }
 
         async function loadDataFromSheet() {
