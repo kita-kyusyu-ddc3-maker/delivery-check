@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DDC Scanner v1.14</title>
+    <title>DDC Scanner v1.15</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -63,6 +63,10 @@
         .list-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; font-size: 17px; font-weight: bold; }
         .list-item.done { background: #f0fff4; color: #2ecc71; }
 
+        #custom-popup { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .popup-card { background: #fff; padding: 25px; border-radius: 20px; width: 100%; max-width: 320px; text-align: center; }
+        .popup-content { margin: 20px 0; font-size: 17px; line-height: 1.5; white-space: pre-wrap; text-align: left; max-height: 250px; overflow-y: auto; }
+
         .footer { height: 32vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 10px; flex-shrink: 0; }
         .btn-side { width: 75px; height: 75px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 40px; display: flex; align-items: center; justify-content: center; outline: none; }
         #scan-main { width: 145px; height: 145px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 20px; font-weight: 900; outline: none; transition: 0.2s; }
@@ -75,6 +79,14 @@
     <div id="orientation-warning">
         <div style="font-size: 50px; margin-bottom: 20px;">📱</div>
         <p style="font-size: 20px; font-weight: bold;">DDC Scanner<br>端末を縦にしてください</p>
+    </div>
+
+    <div id="custom-popup">
+        <div class="popup-card">
+            <h3 id="popup-title">DETAILS</h3>
+            <div id="popup-text" class="popup-content"></div>
+            <button onclick="closePopup()" style="width:100%; padding:12px; background:var(--purple-accent); color:#fff; border:none; border-radius:10px;">CLOSE</button>
+        </div>
     </div>
 
     <div id="setup-screen">
@@ -116,9 +128,9 @@
     <script>
         let db = {}; const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQkGW07X71K4ABtBqX4HI4mbH4D9fChVkM8eoBVpvlyG5Ga_7a6vL6o6Q1zIOpJBFOZ-P--mBMbAvto/pub?gid=0&single=true&output=csv";
         let myCourse = localStorage.getItem('v41_course_id') || "";
-        let idx = parseInt(localStorage.getItem('v114_idx')) || 0;
-        let scanStep = parseInt(localStorage.getItem('v114_step')) || 1; 
-        let historyData = JSON.parse(localStorage.getItem('v46_hist_v14') || '[]'); 
+        let idx = parseInt(localStorage.getItem('v115_idx')) || 0;
+        let scanStep = parseInt(localStorage.getItem('v115_step')) || 1; 
+        let historyData = JSON.parse(localStorage.getItem('v46_hist_v15') || '[]'); 
         let worker = null, isAutoScan = false, viewDayOffset = 0, audioCtx = null;
 
         function formatDateJP(timestamp) { const d = new Date(timestamp); return `${d.getMonth()+1}月${d.getDate()}日(${['日','月','火','水','木','金','土'][d.getDay()]})`; }
@@ -128,45 +140,27 @@
             if (!cycle || cycle.isFinalized) { cycle = { id: Date.now(), course: myCourse, shops: {}, completedCodes: [], isFinalized: false }; historyData.unshift(cycle); if(historyData.length > 3) historyData.pop(); saveHistory(); }
             return cycle;
         }
-        function saveHistory() { localStorage.setItem('v46_hist_v14', JSON.stringify(historyData)); localStorage.setItem('v41_course_id', myCourse); localStorage.setItem('v114_idx', idx); localStorage.setItem('v114_step', scanStep); }
+        function saveHistory() { localStorage.setItem('v46_hist_v15', JSON.stringify(historyData)); localStorage.setItem('v41_course_id', myCourse); localStorage.setItem('v115_idx', idx); localStorage.setItem('v115_step', scanStep); }
+
+        function showPopup(title, text) {
+            document.getElementById('popup-title').innerText = title;
+            document.getElementById('popup-text').innerText = text;
+            document.getElementById('custom-popup').style.display = "flex";
+        }
+        function closePopup() { document.getElementById('custom-popup').style.display = "none"; }
 
         function playSound(type) {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            const now = audioCtx.currentTime; 
-            const masterGain = audioCtx.createGain(); 
-            masterGain.gain.setValueAtTime(1.0, now); // マスター音量を最大に
-            masterGain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime; const masterGain = audioCtx.createGain(); masterGain.gain.setValueAtTime(1.0, now); masterGain.connect(audioCtx.destination);
 
             if (type === 'ok') { 
-                // ピン！
-                const o1 = audioCtx.createOscillator(); const g1 = audioCtx.createGain();
-                o1.connect(g1); g1.connect(masterGain);
-                o1.type = 'sine'; o1.frequency.setValueAtTime(659.25, now);
-                g1.gain.setValueAtTime(0, now); g1.gain.linearRampToValueAtTime(0.8, now + 0.05); // 音量を0.2から0.8へ
-                g1.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-                o1.start(now); o1.stop(now + 0.4);
-                // ポーン！
-                const o2 = audioCtx.createOscillator(); const g2 = audioCtx.createGain();
-                o2.connect(g2); g2.connect(masterGain);
-                o2.type = 'sine'; o2.frequency.setValueAtTime(523.25, now + 0.12);
-                g2.gain.setValueAtTime(0, now + 0.12); g2.gain.linearRampToValueAtTime(0.8, now + 0.17);
-                g2.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
-                o2.start(now + 0.12); o2.stop(now + 0.7);
+                const o1 = audioCtx.createOscillator(); const g1 = audioCtx.createGain(); o1.connect(g1); g1.connect(masterGain); o1.type = 'sine'; o1.frequency.setValueAtTime(659.25, now); g1.gain.setValueAtTime(0, now); g1.gain.linearRampToValueAtTime(0.8, now + 0.05); g1.gain.exponentialRampToValueAtTime(0.01, now + 0.4); o1.start(now); o1.stop(now + 0.4);
+                const o2 = audioCtx.createOscillator(); const g2 = audioCtx.createGain(); o2.connect(g2); g2.connect(masterGain); o2.type = 'sine'; o2.frequency.setValueAtTime(523.25, now + 0.12); g2.gain.setValueAtTime(0, now + 0.12); g2.gain.linearRampToValueAtTime(0.8, now + 0.17); g2.gain.exponentialRampToValueAtTime(0.01, now + 0.7); o2.start(now + 0.12); o2.stop(now + 0.7);
             } else if (type === 'ng') { 
-                // 厚みを持たせたブッブー
-                [140, 135, 145].forEach((freq, i) => {
-                    const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
-                    o.connect(g); g.connect(masterGain);
-                    o.type = 'sawtooth'; o.frequency.setValueAtTime(freq, now + (i*0.02));
-                    g.gain.setValueAtTime(0.4, now); g.gain.linearRampToValueAtTime(0, now + 0.5);
-                    o.start(now); o.stop(now + 0.5);
-                });
+                [140, 135, 145].forEach((freq, i) => { const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.connect(g); g.connect(masterGain); o.type = 'sawtooth'; o.frequency.setValueAtTime(freq, now + (i*0.02)); g.gain.setValueAtTime(0.4, now); g.gain.linearRampToValueAtTime(0, now + 0.5); o.start(now); o.stop(now + 0.5); });
             } else if (type === 'tap') {
-                const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
-                o.connect(g); g.connect(masterGain); o.type = 'sine'; o.frequency.setValueAtTime(1500, now);
-                g.gain.setValueAtTime(0.1, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                o.start(); o.stop(now + 0.1);
+                const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.connect(g); g.connect(masterGain); o.type = 'sine'; o.frequency.setValueAtTime(1500, now); g.gain.setValueAtTime(0.1, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.1); o.start(); o.stop(now + 0.1);
             }
         }
 
@@ -179,11 +173,42 @@
         function changeTab(day) { viewDayOffset = day; document.querySelectorAll('.tab-btn').forEach((b, i) => { b.classList.toggle('active', i === day); }); renderList(); }
         function applySettings() { myCourse = document.getElementById('course-in').value; playSound('tap'); document.getElementById('setup-screen').style.display = 'none'; idx = 0; scanStep = 1; saveHistory(); ui(); }
         async function initAI() { const btn = document.getElementById('scan-main'); worker = await Tesseract.createWorker(); await worker.loadLanguage('eng'); await worker.initialize('eng'); await worker.setParameters({ tessedit_char_whitelist: '0123456789', tessedit_pageseg_mode: '7' }); btn.disabled = false; btn.innerText = "AUTO SCAN"; btn.classList.add('ready'); }
-        function renderList() { const listUi = document.getElementById('delivery-list-ui'); listUi.innerHTML = ""; const entry = historyData[viewDayOffset]; if(!entry) { listUi.innerHTML = "<div style='text-align:center; padding:20px; color:#999;'>記録なし</div>"; return; } const shops = db[entry.course] || []; shops.forEach((s, i) => { const myShopHist = entry.shops[s.c] || []; const isFinalized = entry.completedCodes.includes(s.c); const div = document.createElement('div'); div.className = `list-item ${isFinalized ? 'done' : ''}`; const statusMarker = isFinalized ? '✔' : '-'; div.innerHTML = `<span>${statusMarker} ${i+1}. ${s.n}</span><span style='font-size:15px; color:#666;'>${myShopHist.length > 0 ? myShopHist.length + '台' : statusMarker}</span>`; div.onclick = () => { playSound('tap'); if(myShopHist.length > 0) alert(`${s.n}\n納品日: ${formatDateJP(entry.id)}\n履歴:\n` + myShopHist.map(h => `・${h.time}`).join("\n")); }; listUi.appendChild(div); }); }
+        
+        function renderList() { 
+            const listUi = document.getElementById('delivery-list-ui'); listUi.innerHTML = ""; 
+            const entry = historyData[viewDayOffset]; if(!entry) { listUi.innerHTML = "<div style='text-align:center; padding:20px; color:#999;'>記録なし</div>"; return; } 
+            const shops = db[entry.course] || []; 
+            shops.forEach((s, i) => { 
+                const myShopHist = entry.shops[s.c] || []; const isFinalized = entry.completedCodes.includes(s.c); 
+                const div = document.createElement('div'); div.className = `list-item ${isFinalized ? 'done' : ''}`; 
+                const statusMarker = isFinalized ? '✔' : '-'; 
+                div.innerHTML = `<span>${statusMarker} ${i+1}. ${s.n}</span><span style='font-size:15px; color:#666;'>${myShopHist.length > 0 ? myShopHist.length + '台' : statusMarker}</span>`; 
+                div.onclick = () => { 
+                    playSound('tap'); 
+                    if(myShopHist.length > 0) showPopup(s.n, `納品日: ${formatDateJP(entry.id)}\n履歴:\n` + myShopHist.map(h => `・${h.time}`).join("\n")); 
+                    else showPopup(s.n, `記録なし`);
+                }; 
+                listUi.appendChild(div); 
+            }); 
+        }
+
         function ui() { if(!db[myCourse]) return; const item = db[myCourse][idx]; document.getElementById('top-id-display').innerText = `${myCourse} - ${String(idx + 1).padStart(2, '0')}`; document.getElementById('code-label').innerText = item.c; document.getElementById('name-label').innerText = item.n; updateStepLabel(); }
         function updateStepLabel() { const label = document.getElementById('scan-step-label'); const guide = document.getElementById('guide'); if(scanStep === 1) { label.innerText = "STEP 1: 看板スキャン"; label.style.color = "var(--purple-accent)"; guide.classList.remove('step2'); } else { label.innerText = "STEP 2: シールスキャン"; label.style.color = "#ff9f43"; guide.classList.add('step2'); } }
-        function stepShop(d) { const list = db[myCourse]; const cycle = getCurrentCycle(); if(d === 1 && cycle) { const currentShopCode = list[idx].c; if(cycle.shops[currentShopCode] && cycle.shops[currentShopCode].length > 0) { if(!cycle.completedCodes.includes(currentShopCode)) cycle.completedCodes.push(currentShopCode); } if(idx === list.length - 1) { cycle.isFinalized = true; alert("全行程終了。お疲れ様でした。"); } } idx = Math.max(0, Math.min(list.length - 1, idx + d)); scanStep = 1; saveHistory(); ui(); }
-        function toggleAutoScan() { isAutoScan = !isAutoScan; const btn = document.getElementById('scan-main'); if(isAutoScan) { playSound('tap'); btn.innerText = "STOP"; btn.classList.add('active'); runScannerLoop(); } else { playSound('tap'); btn.innerText = "AUTO SCAN"; btn.classList.remove('active'); } }
+        
+        function stepShop(d) { 
+            const list = db[myCourse]; const cycle = getCurrentCycle(); 
+            if(d === 1 && cycle) { 
+                const currentShopCode = list[idx].c; 
+                if(cycle.shops[currentShopCode] && cycle.shops[currentShopCode].length > 0) { if(!cycle.completedCodes.includes(currentShopCode)) cycle.completedCodes.push(currentShopCode); } 
+                if(idx === list.length - 1) { 
+                    cycle.isFinalized = true; 
+                    showPopup("全行程終了", "本日の記録を確定しました。お疲れ様でした。");
+                } 
+            } 
+            idx = Math.max(0, Math.min(list.length - 1, idx + d)); scanStep = 1; saveHistory(); ui(); 
+        }
+        
+        function toggleAutoScan() { isAutoScan = !isAutoScan; const btn = document.getElementById('scan-main'); if(isAutoScan) { playSound('start'); btn.innerText = "STOP"; btn.classList.add('active'); runScannerLoop(); } else { playSound('tap'); btn.innerText = "AUTO SCAN"; btn.classList.remove('active'); } }
         async function runScannerLoop() { if(!isAutoScan) return; const v = document.getElementById('video'); const canvas = document.createElement('canvas'); const scale = v.videoWidth / v.clientWidth; canvas.width = 180; canvas.height = 80; const sx = (v.videoWidth - 180 * scale) / 2; const sy = (v.videoHeight - 80 * scale) / 2; const ctx = canvas.getContext('2d'); ctx.drawImage(v, sx, sy, 180 * scale, 80 * scale, 0, 0, 180, 80); let imageData = ctx.getImageData(0,0,180,80); for(let i=0; i<imageData.data.length; i+=4) { let g = imageData.data[i]*0.3 + imageData.data[i+1]*0.59 + imageData.data[i+2]*0.11; imageData.data[i] = imageData.data[i+1] = imageData.data[i+2] = g > 125 ? 255 : 0; } ctx.putImageData(imageData, 0, 0); try { const res = await worker.recognize(canvas); const txt = res.data.text.replace(/[^0-9]/g, ''); if(txt.length >= 6) checkMatch(txt); } catch(e) {} if (isAutoScan) setTimeout(runScannerLoop, 300); }
         function checkMatch(input) { const now = Date.now(); if(now - lastCheckTime < 1800) return; const targetCode = db[myCourse][idx].c; if(!input.includes(targetCode)) { if(input.length === 6) { lastCheckTime = now; showVisual(false); playSound('ng'); if(navigator.vibrate) navigator.vibrate(400); } return; } lastCheckTime = now; ensureCycle(); if(scanStep === 1) { scanStep = 2; playSound('ok'); if(navigator.vibrate) navigator.vibrate(100); updateStepLabel(); saveHistory(); } else { saveRecord(targetCode); showVisual(true); playSound('ok'); scanStep = 1; updateStepLabel(); if(navigator.vibrate) navigator.vibrate([100, 50, 100]); toggleAutoScan(); saveHistory(); } }
         let lastCheckTime = 0;
