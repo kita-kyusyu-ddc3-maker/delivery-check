@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DDC Scanner v1.16</title>
+    <title>DDC Scanner v1.17</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -46,12 +46,7 @@
         .guide-rect.step2 { border-color: #ff9f43; }
 
         #symbol-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 240px; font-weight: bold; pointer-events: none; z-index: 5000; opacity: 0; text-shadow: 0 0 30px rgba(255,255,255,0.8); }
-        @keyframes popStop { 
-            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
-            15% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-            85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-        }
+        @keyframes popStop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); } 15% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } 85% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); } }
         .animate-symbol { animation: popStop 1.3s ease-in-out forwards; }
 
         #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: none; flex-direction: column; padding: 20px; padding-top: 50px; }
@@ -128,9 +123,9 @@
     <script>
         let db = {}; const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQkGW07X71K4ABtBqX4HI4mbH4D9fChVkM8eoBVpvlyG5Ga_7a6vL6o6Q1zIOpJBFOZ-P--mBMbAvto/pub?gid=0&single=true&output=csv";
         let myCourse = localStorage.getItem('v41_course_id') || "";
-        let idx = parseInt(localStorage.getItem('v116_idx')) || 0;
-        let scanStep = parseInt(localStorage.getItem('v116_step')) || 1; 
-        let historyData = JSON.parse(localStorage.getItem('v46_hist_v16') || '[]'); 
+        let idx = parseInt(localStorage.getItem('v117_idx')) || 0;
+        let scanStep = parseInt(localStorage.getItem('v117_step')) || 1; 
+        let historyData = JSON.parse(localStorage.getItem('v46_hist_v17') || '[]'); 
         let worker = null, isAutoScan = false, viewDayOffset = 0, audioCtx = null;
 
         function formatDateJP(timestamp) { const d = new Date(timestamp); return `${d.getMonth()+1}月${d.getDate()}日(${['日','月','火','水','木','金','土'][d.getDay()]})`; }
@@ -140,7 +135,7 @@
             if (!cycle || cycle.isFinalized) { cycle = { id: Date.now(), course: myCourse, shops: {}, completedCodes: [], isFinalized: false }; historyData.unshift(cycle); if(historyData.length > 3) historyData.pop(); saveHistory(); }
             return cycle;
         }
-        function saveHistory() { localStorage.setItem('v46_hist_v16', JSON.stringify(historyData)); localStorage.setItem('v41_course_id', myCourse); localStorage.setItem('v116_idx', idx); localStorage.setItem('v116_step', scanStep); }
+        function saveHistory() { localStorage.setItem('v46_hist_v17', JSON.stringify(historyData)); localStorage.setItem('v41_course_id', myCourse); localStorage.setItem('v117_idx', idx); localStorage.setItem('v117_step', scanStep); }
 
         function showPopup(title, text) { document.getElementById('popup-title').innerText = title; document.getElementById('popup-text').innerText = text; document.getElementById('custom-popup').style.display = "flex"; }
         function closePopup() { document.getElementById('custom-popup').style.display = "none"; }
@@ -187,16 +182,23 @@
         
         function stepShop(d) { 
             const list = db[myCourse]; const cycle = ensureCycle(); 
-            const currentShift = myCourse.substring(0,1); 
-            const hasShift3 = Object.keys(db).some(c => c.startsWith('3') && c.endsWith(myCourse.substring(1))); 
+            const currentShift = myCourse.substring(0,1); // 1, 2, 3
+            const courseCore = myCourse.substring(1); // 14, 04, 01 等
+            
+            // 3便まである特別なコースの判定
+            const isSpecial3ShiftCourse = ["14", "04", "01"].includes(courseCore);
 
             if(d === 1) { 
                 const shopCode = list[idx].c; 
                 if(cycle.shops[shopCode]?.length > 0 && !cycle.completedCodes.includes(shopCode)) cycle.completedCodes.push(shopCode);
                 
                 if(idx === list.length - 1) { 
-                    if((hasShift3 && currentShift === "3") || (!hasShift3 && currentShift === "2")) {
-                        cycle.isFinalized = true; showPopup("全行程終了", "全行程終了：本日の記録を確定しました。お疲れ様でした。");
+                    // 最終確定の判定条件
+                    const isFinalShift = (isSpecial3ShiftCourse && currentShift === "3") || (!isSpecial3ShiftCourse && currentShift === "2");
+
+                    if(isFinalShift) {
+                        cycle.isFinalized = true; 
+                        showPopup("全行程終了", "全行程終了：本日の記録を確定しました。お疲れ様でした。");
                     } else {
                         showPopup(`${currentShift}便 完了`, `${currentShift}便の配送を完了しました。次の便の設定を行ってください。`);
                     }
