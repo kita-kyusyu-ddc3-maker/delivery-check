@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DDC Scanner v1.17</title>
+    <title>DDC Scanner v1.18</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -30,9 +30,11 @@
         #orientation-warning { position: fixed; inset: 0; background: var(--purple-accent); color: white; z-index: 99999; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
         @media screen and (orientation: landscape) { #orientation-warning { display: flex; } }
 
-        .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; flex-shrink: 0; }
-        .settings-btn { background: none; border: none; color: white; font-size: 35px; padding: 10px; cursor: pointer; }
-        .course-title { font-size: 28px; flex-grow: 1; text-align: center; margin-right: 45px; letter-spacing: 1px; }
+        .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; flex-shrink: 0; }
+        .settings-btn { background: none; border: none; color: white; font-size: 35px; padding: 10px; cursor: pointer; flex-shrink: 0; }
+        .course-info-container { flex-grow: 1; display: flex; align-items: baseline; justify-content: center; overflow: hidden; }
+        .course-title { font-size: 28px; letter-spacing: 1px; white-space: nowrap; }
+        .version-label { font-size: 10px; opacity: 0.7; margin-left: 10px; font-weight: normal; }
 
         .header { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; text-align: center; }
         .line-name { font-size: 28px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; width: 95%; overflow: hidden; }
@@ -103,8 +105,11 @@
     <div id="symbol-overlay"></div>
     <div class="top-id-bar">
         <button class="settings-btn" onclick="openSetup(); playSound('tap');">⚙</button>
-        <div id="top-id-display" class="course-title">DDC SCANNER</div>
-    </div>
+        <div class="course-info-container">
+            <div id="top-id-display" class="course-title">DDC SCANNER</div>
+            <span class="version-label">v1.18</span>
+        </div>
+        <div style="width: 45px;"></div> </div>
 
     <div class="header">
         <div id="scan-step-label">STEP 1: 看板スキャン</div>
@@ -123,9 +128,9 @@
     <script>
         let db = {}; const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQkGW07X71K4ABtBqX4HI4mbH4D9fChVkM8eoBVpvlyG5Ga_7a6vL6o6Q1zIOpJBFOZ-P--mBMbAvto/pub?gid=0&single=true&output=csv";
         let myCourse = localStorage.getItem('v41_course_id') || "";
-        let idx = parseInt(localStorage.getItem('v117_idx')) || 0;
-        let scanStep = parseInt(localStorage.getItem('v117_step')) || 1; 
-        let historyData = JSON.parse(localStorage.getItem('v46_hist_v17') || '[]'); 
+        let idx = parseInt(localStorage.getItem('v118_idx')) || 0;
+        let scanStep = parseInt(localStorage.getItem('v118_step')) || 1; 
+        let historyData = JSON.parse(localStorage.getItem('v46_hist_v18') || '[]'); 
         let worker = null, isAutoScan = false, viewDayOffset = 0, audioCtx = null;
 
         function formatDateJP(timestamp) { const d = new Date(timestamp); return `${d.getMonth()+1}月${d.getDate()}日(${['日','月','火','水','木','金','土'][d.getDay()]})`; }
@@ -135,7 +140,7 @@
             if (!cycle || cycle.isFinalized) { cycle = { id: Date.now(), course: myCourse, shops: {}, completedCodes: [], isFinalized: false }; historyData.unshift(cycle); if(historyData.length > 3) historyData.pop(); saveHistory(); }
             return cycle;
         }
-        function saveHistory() { localStorage.setItem('v46_hist_v17', JSON.stringify(historyData)); localStorage.setItem('v41_course_id', myCourse); localStorage.setItem('v117_idx', idx); localStorage.setItem('v117_step', scanStep); }
+        function saveHistory() { localStorage.setItem('v46_hist_v18', JSON.stringify(historyData)); localStorage.setItem('v41_course_id', myCourse); localStorage.setItem('v118_idx', idx); localStorage.setItem('v118_step', scanStep); }
 
         function showPopup(title, text) { document.getElementById('popup-title').innerText = title; document.getElementById('popup-text').innerText = text; document.getElementById('custom-popup').style.display = "flex"; }
         function closePopup() { document.getElementById('custom-popup').style.display = "none"; }
@@ -182,10 +187,8 @@
         
         function stepShop(d) { 
             const list = db[myCourse]; const cycle = ensureCycle(); 
-            const currentShift = myCourse.substring(0,1); // 1, 2, 3
-            const courseCore = myCourse.substring(1); // 14, 04, 01 等
-            
-            // 3便まである特別なコースの判定
+            const currentShift = myCourse.substring(0,1); 
+            const courseCore = myCourse.substring(1); 
             const isSpecial3ShiftCourse = ["14", "04", "01"].includes(courseCore);
 
             if(d === 1) { 
@@ -193,9 +196,7 @@
                 if(cycle.shops[shopCode]?.length > 0 && !cycle.completedCodes.includes(shopCode)) cycle.completedCodes.push(shopCode);
                 
                 if(idx === list.length - 1) { 
-                    // 最終確定の判定条件
                     const isFinalShift = (isSpecial3ShiftCourse && currentShift === "3") || (!isSpecial3ShiftCourse && currentShift === "2");
-
                     if(isFinalShift) {
                         cycle.isFinalized = true; 
                         showPopup("全行程終了", "全行程終了：本日の記録を確定しました。お疲れ様でした。");
@@ -213,7 +214,7 @@
         let lastCheckTime = 0;
         function saveRecord(code) { const cycle = ensureCycle(); const timeStr = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}); if(!cycle.shops[code]) cycle.shops[code] = []; cycle.shops[code].push({ time: timeStr }); saveHistory(); ui(); }
         function showVisual(isOk) { const overlay = document.getElementById('symbol-overlay'); overlay.innerText = isOk ? "○" : "×"; overlay.style.color = isOk ? "var(--ok-blue)" : "var(--ng-red)"; overlay.classList.remove('animate-symbol'); void overlay.offsetWidth; overlay.classList.add('animate-symbol'); }
-        async function cam() { const v = document.getElementById('video'); try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } }); v.srcObject = s; } catch(e) { alert("カメラ起動失敗。"); } }
+        async function cam() { const v = document.getElementById('video'); try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } }); v.srcObject = s; if (screen.orientation && screen.orientation.lock) { try { await screen.orientation.lock('portrait'); } catch(e) {} } } catch(e) { alert("カメラ起動失敗。"); } }
         window.onload = () => { loadDataFromSheet(); cam(); };
     </script>
 </body>
