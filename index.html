@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DDC Scanner v1.18</title>
+    <title>DDC Scanner v1.20</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -30,11 +30,14 @@
         #orientation-warning { position: fixed; inset: 0; background: var(--purple-accent); color: white; z-index: 99999; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
         @media screen and (orientation: landscape) { #orientation-warning { display: flex; } }
 
-        .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; flex-shrink: 0; }
-        .settings-btn { background: none; border: none; color: white; font-size: 35px; padding: 10px; cursor: pointer; flex-shrink: 0; }
-        .course-info-container { flex-grow: 1; display: flex; align-items: baseline; justify-content: center; overflow: hidden; }
-        .course-title { font-size: 28px; letter-spacing: 1px; white-space: nowrap; }
-        .version-label { font-size: 10px; opacity: 0.7; margin-left: 10px; font-weight: normal; }
+        /* ヘッダーのレイアウト修正 */
+        .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; flex-shrink: 0; position: relative; }
+        .settings-btn { background: none; border: none; color: white; font-size: 35px; padding: 5px; cursor: pointer; z-index: 10; }
+        
+        .course-info-container { flex-grow: 1; text-align: center; overflow: hidden; }
+        .course-title { font-size: 32px; letter-spacing: 1px; white-space: nowrap; } /* サイズを32pxに拡大 */
+        
+        .version-label { font-size: 10px; opacity: 0.8; font-weight: normal; position: absolute; right: 10px; bottom: 5px; } /* 右下に配置 */
 
         .header { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; text-align: center; }
         .line-name { font-size: 28px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; width: 95%; overflow: hidden; }
@@ -107,12 +110,12 @@
         <button class="settings-btn" onclick="openSetup(); playSound('tap');">⚙</button>
         <div class="course-info-container">
             <div id="top-id-display" class="course-title">DDC SCANNER</div>
-            <span class="version-label">v1.18</span>
         </div>
-        <div style="width: 45px;"></div> </div>
+        <span class="version-label">v1.20</span>
+    </div>
 
     <div class="header">
-        <div id="scan-step-label">STEP 1: 看板スキャン</div>
+        <div id="scan-step-label">STEP 1: 台車看板スキャン</div>
         <div id="name-label" class="line-name">LOADING...</div>
         <div id="code-label" class="line-code">000000</div>
     </div>
@@ -128,9 +131,9 @@
     <script>
         let db = {}; const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQkGW07X71K4ABtBqX4HI4mbH4D9fChVkM8eoBVpvlyG5Ga_7a6vL6o6Q1zIOpJBFOZ-P--mBMbAvto/pub?gid=0&single=true&output=csv";
         let myCourse = localStorage.getItem('v41_course_id') || "";
-        let idx = parseInt(localStorage.getItem('v118_idx')) || 0;
-        let scanStep = parseInt(localStorage.getItem('v118_step')) || 1; 
-        let historyData = JSON.parse(localStorage.getItem('v46_hist_v18') || '[]'); 
+        let idx = parseInt(localStorage.getItem('v120_idx')) || 0;
+        let scanStep = parseInt(localStorage.getItem('v120_step')) || 1; 
+        let historyData = JSON.parse(localStorage.getItem('v46_hist_v20') || '[]'); 
         let worker = null, isAutoScan = false, viewDayOffset = 0, audioCtx = null;
 
         function formatDateJP(timestamp) { const d = new Date(timestamp); return `${d.getMonth()+1}月${d.getDate()}日(${['日','月','火','水','木','金','土'][d.getDay()]})`; }
@@ -140,7 +143,7 @@
             if (!cycle || cycle.isFinalized) { cycle = { id: Date.now(), course: myCourse, shops: {}, completedCodes: [], isFinalized: false }; historyData.unshift(cycle); if(historyData.length > 3) historyData.pop(); saveHistory(); }
             return cycle;
         }
-        function saveHistory() { localStorage.setItem('v46_hist_v18', JSON.stringify(historyData)); localStorage.setItem('v41_course_id', myCourse); localStorage.setItem('v118_idx', idx); localStorage.setItem('v118_step', scanStep); }
+        function saveHistory() { localStorage.setItem('v46_hist_v20', JSON.stringify(historyData)); localStorage.setItem('v41_course_id', myCourse); localStorage.setItem('v120_idx', idx); localStorage.setItem('v120_step', scanStep); }
 
         function showPopup(title, text) { document.getElementById('popup-title').innerText = title; document.getElementById('popup-text').innerText = text; document.getElementById('custom-popup').style.display = "flex"; }
         function closePopup() { document.getElementById('custom-popup').style.display = "none"; }
@@ -183,26 +186,20 @@
         }
 
         function ui() { if(!db[myCourse]) return; const item = db[myCourse][idx]; document.getElementById('top-id-display').innerText = `${myCourse} - ${String(idx + 1).padStart(2, '0')}`; document.getElementById('code-label').innerText = item.c; document.getElementById('name-label').innerText = item.n; updateStepLabel(); }
-        function updateStepLabel() { const label = document.getElementById('scan-step-label'); const guide = document.getElementById('guide'); if(scanStep === 1) { label.innerText = "STEP 1: 看板スキャン"; label.style.color = "var(--purple-accent)"; guide.classList.remove('step2'); } else { label.innerText = "STEP 2: シールスキャン"; label.style.color = "#ff9f43"; guide.classList.add('step2'); } }
+        function updateStepLabel() { const label = document.getElementById('scan-step-label'); const guide = document.getElementById('guide'); if(scanStep === 1) { label.innerText = "STEP 1: 台車看板スキャン"; label.style.color = "var(--purple-accent)"; guide.classList.remove('step2'); } else { label.innerText = "STEP 2: ラベルスキャン"; label.style.color = "#ff9f43"; guide.classList.add('step2'); } }
         
         function stepShop(d) { 
             const list = db[myCourse]; const cycle = ensureCycle(); 
             const currentShift = myCourse.substring(0,1); 
             const courseCore = myCourse.substring(1); 
             const isSpecial3ShiftCourse = ["14", "04", "01"].includes(courseCore);
-
             if(d === 1) { 
                 const shopCode = list[idx].c; 
                 if(cycle.shops[shopCode]?.length > 0 && !cycle.completedCodes.includes(shopCode)) cycle.completedCodes.push(shopCode);
-                
                 if(idx === list.length - 1) { 
                     const isFinalShift = (isSpecial3ShiftCourse && currentShift === "3") || (!isSpecial3ShiftCourse && currentShift === "2");
-                    if(isFinalShift) {
-                        cycle.isFinalized = true; 
-                        showPopup("全行程終了", "全行程終了：本日の記録を確定しました。お疲れ様でした。");
-                    } else {
-                        showPopup(`${currentShift}便 完了`, `${currentShift}便の配送を完了しました。次の便の設定を行ってください。`);
-                    }
+                    if(isFinalShift) { cycle.isFinalized = true; showPopup("全行程終了", "全行程終了：本日の記録を確定しました。お疲れ様でした。"); } 
+                    else { showPopup(`${currentShift}便 完了`, `${currentShift}便の配送を完了しました。次の便の設定を行ってください。`); }
                 } 
             } 
             idx = Math.max(0, Math.min(list.length - 1, idx + d)); scanStep = 1; saveHistory(); ui(); 
@@ -210,12 +207,4 @@
         
         function toggleAutoScan() { isAutoScan = !isAutoScan; const btn = document.getElementById('scan-main'); if(isAutoScan) { playSound('tap'); btn.innerText = "STOP"; btn.classList.add('active'); runScannerLoop(); } else { playSound('tap'); btn.innerText = "AUTO SCAN"; btn.classList.remove('active'); } }
         async function runScannerLoop() { if(!isAutoScan) return; const v = document.getElementById('video'); const canvas = document.createElement('canvas'); const scale = v.videoWidth / v.clientWidth; canvas.width = 180; canvas.height = 80; const sx = (v.videoWidth - 180 * scale) / 2; const sy = (v.videoHeight - 80 * scale) / 2; const ctx = canvas.getContext('2d'); ctx.drawImage(v, sx, sy, 180 * scale, 80 * scale, 0, 0, 180, 80); let imageData = ctx.getImageData(0,0,180,80); for(let i=0; i<imageData.data.length; i+=4) { let g = imageData.data[i]*0.3 + imageData.data[i+1]*0.59 + imageData.data[i+2]*0.11; imageData.data[i] = imageData.data[i+1] = imageData.data[i+2] = g > 125 ? 255 : 0; } ctx.putImageData(imageData, 0, 0); try { const res = await worker.recognize(canvas); const txt = res.data.text.replace(/[^0-9]/g, ''); if(txt.length >= 6) checkMatch(txt); } catch(e) {} if (isAutoScan) setTimeout(runScannerLoop, 300); }
-        function checkMatch(input) { const now = Date.now(); if(now - lastCheckTime < 1800) return; const targetCode = db[myCourse][idx].c; if(!input.includes(targetCode)) { if(input.length === 6) { lastCheckTime = now; showVisual(false); playSound('ng'); if(navigator.vibrate) navigator.vibrate(400); } return; } lastCheckTime = now; ensureCycle(); if(scanStep === 1) { scanStep = 2; playSound('ok'); if(navigator.vibrate) navigator.vibrate(100); updateStepLabel(); saveHistory(); } else { saveRecord(targetCode); showVisual(true); playSound('ok'); scanStep = 1; updateStepLabel(); if(navigator.vibrate) navigator.vibrate([100, 50, 100]); toggleAutoScan(); saveHistory(); } }
-        let lastCheckTime = 0;
-        function saveRecord(code) { const cycle = ensureCycle(); const timeStr = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}); if(!cycle.shops[code]) cycle.shops[code] = []; cycle.shops[code].push({ time: timeStr }); saveHistory(); ui(); }
-        function showVisual(isOk) { const overlay = document.getElementById('symbol-overlay'); overlay.innerText = isOk ? "○" : "×"; overlay.style.color = isOk ? "var(--ok-blue)" : "var(--ng-red)"; overlay.classList.remove('animate-symbol'); void overlay.offsetWidth; overlay.classList.add('animate-symbol'); }
-        async function cam() { const v = document.getElementById('video'); try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } }); v.srcObject = s; if (screen.orientation && screen.orientation.lock) { try { await screen.orientation.lock('portrait'); } catch(e) {} } } catch(e) { alert("カメラ起動失敗。"); } }
-        window.onload = () => { loadDataFromSheet(); cam(); };
-    </script>
-</body>
-</html>
+        function checkMatch(input) { const now = Date.now(); if(now - lastCheckTime < 1800) return
