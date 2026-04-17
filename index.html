@@ -30,14 +30,11 @@
         #orientation-warning { position: fixed; inset: 0; background: var(--purple-accent); color: white; z-index: 99999; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
         @media screen and (orientation: landscape) { #orientation-warning { display: flex; } }
 
-        /* ヘッダーのレイアウト修正 */
         .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; flex-shrink: 0; position: relative; }
         .settings-btn { background: none; border: none; color: white; font-size: 35px; padding: 5px; cursor: pointer; z-index: 10; }
-        
         .course-info-container { flex-grow: 1; text-align: center; overflow: hidden; }
-        .course-title { font-size: 32px; letter-spacing: 1px; white-space: nowrap; } /* サイズを32pxに拡大 */
-        
-        .version-label { font-size: 10px; opacity: 0.8; font-weight: normal; position: absolute; right: 10px; bottom: 5px; } /* 右下に配置 */
+        .course-title { font-size: 32px; letter-spacing: 1px; white-space: nowrap; }
+        .version-label { font-size: 10px; opacity: 0.8; font-weight: normal; position: absolute; right: 10px; bottom: 5px; }
 
         .header { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; text-align: center; }
         .line-name { font-size: 28px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; width: 95%; overflow: hidden; }
@@ -207,4 +204,12 @@
         
         function toggleAutoScan() { isAutoScan = !isAutoScan; const btn = document.getElementById('scan-main'); if(isAutoScan) { playSound('tap'); btn.innerText = "STOP"; btn.classList.add('active'); runScannerLoop(); } else { playSound('tap'); btn.innerText = "AUTO SCAN"; btn.classList.remove('active'); } }
         async function runScannerLoop() { if(!isAutoScan) return; const v = document.getElementById('video'); const canvas = document.createElement('canvas'); const scale = v.videoWidth / v.clientWidth; canvas.width = 180; canvas.height = 80; const sx = (v.videoWidth - 180 * scale) / 2; const sy = (v.videoHeight - 80 * scale) / 2; const ctx = canvas.getContext('2d'); ctx.drawImage(v, sx, sy, 180 * scale, 80 * scale, 0, 0, 180, 80); let imageData = ctx.getImageData(0,0,180,80); for(let i=0; i<imageData.data.length; i+=4) { let g = imageData.data[i]*0.3 + imageData.data[i+1]*0.59 + imageData.data[i+2]*0.11; imageData.data[i] = imageData.data[i+1] = imageData.data[i+2] = g > 125 ? 255 : 0; } ctx.putImageData(imageData, 0, 0); try { const res = await worker.recognize(canvas); const txt = res.data.text.replace(/[^0-9]/g, ''); if(txt.length >= 6) checkMatch(txt); } catch(e) {} if (isAutoScan) setTimeout(runScannerLoop, 300); }
-        function checkMatch(input) { const now = Date.now(); if(now - lastCheckTime < 1800) return
+        function checkMatch(input) { const now = Date.now(); if(now - lastCheckTime < 1800) return; const targetCode = db[myCourse][idx].c; if(!input.includes(targetCode)) { if(input.length === 6) { lastCheckTime = now; showVisual(false); playSound('ng'); if(navigator.vibrate) navigator.vibrate(400); } return; } lastCheckTime = now; ensureCycle(); if(scanStep === 1) { scanStep = 2; playSound('ok'); if(navigator.vibrate) navigator.vibrate(100); updateStepLabel(); saveHistory(); } else { saveRecord(targetCode); showVisual(true); playSound('ok'); scanStep = 1; updateStepLabel(); if(navigator.vibrate) navigator.vibrate([100, 50, 100]); toggleAutoScan(); saveHistory(); } }
+        let lastCheckTime = 0;
+        function saveRecord(code) { const cycle = ensureCycle(); const timeStr = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}); if(!cycle.shops[code]) cycle.shops[code] = []; cycle.shops[code].push({ time: timeStr }); saveHistory(); ui(); }
+        function showVisual(isOk) { const overlay = document.getElementById('symbol-overlay'); overlay.innerText = isOk ? "○" : "×"; overlay.style.color = isOk ? "var(--ok-blue)" : "var(--ng-red)"; overlay.classList.remove('animate-symbol'); void overlay.offsetWidth; overlay.classList.add('animate-symbol'); }
+        async function cam() { const v = document.getElementById('video'); try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } }); v.srcObject = s; } catch(e) { alert("カメラ起動失敗。"); } }
+        window.onload = () => { loadDataFromSheet(); cam(); };
+    </script>
+</body>
+</html>
