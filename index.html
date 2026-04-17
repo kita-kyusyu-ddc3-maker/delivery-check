@@ -3,72 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DDC Scanner v1.23</title>
+    <title>DDC Scanner v1.24</title>
+    
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%236c5ce7%22/><path d=%22M30 50 l15 15 l25 -30%22 stroke=%22white%22 stroke-width=%2210%22 fill=%22none%22/></svg>">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="data:application/manifest+json,{'display':'standalone','name':'DDC Scanner','orientation':'portrait'}">
+
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%236c5ce7%22/><rect x=%2230%22 y=%2220%22 width=%2240%22 height=%2260%22 rx=%225%22 fill=%22none%22 stroke=%22white%22 stroke-width=%225%22/><circle cx=%2250%22 cy=%2272%22 r=%223%22 fill=%22white%22/><path d=%22M60 65 l15 15 l25 -30%22 stroke=%22%2300ff00%22 stroke-width=%2212%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%236c5ce7%22/><rect x=%2230%22 y=%2220%22 width=%2240%22 height=%2260%22 rx=%225%22 fill=%22none%22 stroke=%22white%22 stroke-width=%225%22/><circle cx=%2250%22 cy=%2272%22 r=%223%22 fill=%22white%22/><path d=%22M60 65 l15 15 l25 -30%22 stroke=%22%2300ff00%22 stroke-width=%2212%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>">
+
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
-        :root { --bg: #f0f0f7; --purple-accent: #6c5ce7; --ok-blue: #3498db; --ng-red: #e74c3c; --shadow: 8px 8px 16px #d1d1d6, -8px -8px 16px #ffffff; --inner: inset 4px 4px 8px #d1d1d6, inset -4px -4px 8px #ffffff; }
+        :root {
+            --bg: #f0f0f7;
+            --purple-accent: #6c5ce7;
+            --ok-blue: #3498db;
+            --ng-red: #e74c3c;
+            --shadow: 8px 8px 16px #d1d1d6, -8px -8px 16px #ffffff;
+            --inner: inset 4px 4px 8px #d1d1d6, inset -4px -4px 8px #ffffff;
+        }
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg); position: fixed; font-family: sans-serif; }
-        .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; position: relative; }
-        .course-title { font-size: 32px; letter-spacing: 1px; flex-grow: 1; text-align: center; }
-        .version-label { font-size: 10px; opacity: 0.8; position: absolute; right: 10px; bottom: 5px; }
-        .header { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; }
-        .line-name { font-size: 28px; font-weight: 900; color: #000; height: 2.2em; display: flex; align-items: center; justify-content: center; text-align: center; width: 95%; overflow: hidden; }
+        html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg); position: fixed; overscroll-behavior: none; }
+        body { font-family: sans-serif; display: flex; flex-direction: column; }
+        
+        /* ヘッダー復元 */
+        .top-id-bar { height: 70px; background: var(--purple-accent); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; flex-shrink: 0; position: relative; }
+        .settings-btn { background: none; border: none; color: white; font-size: 35px; padding: 5px; cursor: pointer; z-index: 10; }
+        .course-info-container { flex-grow: 1; text-align: center; overflow: hidden; }
+        .course-title { font-size: 32px; letter-spacing: 1px; white-space: nowrap; }
+        .version-label { font-size: 10px; opacity: 0.8; font-weight: normal; position: absolute; right: 10px; bottom: 5px; }
+
+        /* 中央エリアの文字サイズ復元 */
+        .header { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; text-align: center; }
+        .line-name { font-size: 28px; font-weight: 900; color: #000; line-height: 1.1; height: 2.2em; display: flex; align-items: center; justify-content: center; width: 95%; overflow: hidden; }
         .line-code { font-size: 50px; color: var(--purple-accent); font-family: monospace; font-weight: 900; letter-spacing: 5px; }
-        #cam-area { height: 25vh; width: 100%; padding: 0 20px; display: flex; align-items: center; justify-content: center; position: relative; }
+
+        /* STEP文字サイズ復元 */
+        #scan-step-label { font-size: 18px; font-weight: bold; color: #666; margin-bottom: 5px; background: #e0e0eb; padding: 4px 20px; border-radius: 12px; border: 1px solid #ccc; }
+        
+        #cam-area { height: 25vh; width: 100%; padding: 0 20px; position: relative; display: flex; align-items: center; justify-content: center; }
         .cam-frame { width: 100%; height: 100%; border-radius: 25px; overflow: hidden; box-shadow: var(--inner); background: #000; position: relative; }
         #video { width: 100%; height: 100%; object-fit: cover; }
-        .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 80px; border: 4px solid var(--purple-accent); border-radius: 12px; pointer-events: none; }
+        .guide-rect { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 80px; border: 4px solid var(--purple-accent); border-radius: 12px; z-index: 500; pointer-events: none; }
         .guide-rect.step2 { border-color: #ff9f43; }
-        #symbol-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 240px; font-weight: bold; pointer-events: none; z-index: 5000; opacity: 0; }
+
+        #symbol-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 240px; font-weight: bold; pointer-events: none; z-index: 5000; opacity: 0; text-shadow: 0 0 30px rgba(255,255,255,0.8); }
+        @keyframes popStop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); } 15% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } 85% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); } }
         .animate-symbol { animation: popStop 1.3s ease-in-out forwards; }
-        @keyframes popStop { 0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)} 15%{opacity:1;transform:translate(-50%,-50%) scale(1.1)} 85%{opacity:1;transform:translate(-50%,-50%) scale(1)} 100%{opacity:0;transform:translate(-50%,-50%) scale(0.8)} }
-        #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: none; flex-direction: column; padding: 20px; padding-top: 40px; }
-        .list-container { flex-grow: 1; overflow-y: auto; background: #fff; border-radius: 15px; padding: 5px; box-shadow: var(--inner); margin-top: 10px; }
-        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 18px 15px; border-bottom: 1px solid #eee; font-weight: bold; cursor: pointer; }
-        .list-item:active { background: #f0f0f7; }
-        .list-item.done { color: #2ecc71; background: #fafffa; }
-        .footer { height: 32vh; display: flex; align-items: center; justify-content: space-evenly; }
-        .btn-side { width: 75px; height: 75px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 40px; }
-        #scan-main { width: 145px; height: 145px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 20px; font-weight: 900; }
-        #scan-main.ready { background: var(--bg); color: var(--purple-accent); }
-        #scan-main.active { background: var(--purple-accent); color: #fff; box-shadow: var(--inner); }
+
+        #setup-screen { position: fixed; inset: 0; background: #f0f0f7; z-index: 9000; display: none; flex-direction: column; padding: 20px; padding-top: 50px; }
+        .setup-card { background: #fff; padding: 15px; border-radius: 20px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-bottom: 15px; flex-shrink: 0; }
+        .list-container { flex-grow: 1; overflow-y: auto; background: #fff; border-radius: 20px; box-shadow: var(--inner); padding: 5px; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 18px 15px; border-bottom: 1px solid #eee; font-size: 17px; font-weight: bold; cursor: pointer; }
+        .list-item.done { background: #f0fff4; color: #2ecc71; }
+
         #custom-popup { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px; }
         .popup-card { background: #fff; padding: 25px; border-radius: 20px; width: 100%; max-width: 320px; text-align: center; }
+
+        /* フッター・ボタンサイズ復元 */
+        .footer { height: 32vh; display: flex; align-items: center; justify-content: space-evenly; padding: 0 10px 10px; flex-shrink: 0; }
+        .btn-side { width: 75px; height: 75px; border-radius: 50%; border: none; background: var(--bg); box-shadow: var(--shadow); color: var(--purple-accent); font-size: 40px; display: flex; align-items: center; justify-content: center; outline: none; }
+        #scan-main { width: 145px; height: 145px; border-radius: 50%; border: none; background: #ccc; box-shadow: var(--shadow); color: #fff; font-size: 20px; font-weight: 900; outline: none; transition: 0.2s; }
+        #scan-main.ready { background: var(--bg); color: var(--purple-accent); font-size: 24px; }
+        #scan-main.active { background: var(--purple-accent); color: #fff; box-shadow: var(--inner); }
     </style>
 </head>
 <body oncontextmenu="return false;">
-    <div id="custom-popup"><div class="popup-card"><h3 id="popup-title">詳細履歴</h3><div id="popup-text" style="margin:20px 0; text-align:left; white-space:pre-wrap; font-size:18px; line-height:1.6;"></div><button onclick="closePopup()" style="width:100%; padding:15px; background:var(--purple-accent); color:#fff; border:none; border-radius:10px; font-weight:bold;">閉じる</button></div></div>
+
+    <div id="custom-popup"><div class="popup-card"><h3 id="popup-title">詳細履歴</h3><div id="popup-text" style="margin:20px 0; text-align:left; white-space:pre-wrap; font-size:18px; line-height:1.6;"></div><button onclick="playSound('tap'); closePopup();" style="width:100%; padding:15px; background:var(--purple-accent); color:#fff; border:none; border-radius:10px; font-weight:bold;">閉じる</button></div></div>
+
     <div id="setup-screen">
-        <div style="background:#fff; padding:15px; border-radius:20px;">
-            <select id="shift-in" onchange="playSound('tap'); updateCourseOptions();" style="width:100%; padding:12px; margin-bottom:10px; font-size:18px;"><option value="1">1便</option><option value="2">2便</option><option value="3">3便</option></select>
-            <select id="course-in" onchange="playSound('tap');" style="width:100%; padding:12px; margin-bottom:10px; font-size:18px;"></select>
-            <button onclick="applySettings();" style="width:100%; height:55px; background:var(--purple-accent); color:#fff; border:none; border-radius:12px; font-weight:bold; font-size:18px;">設定を確定</button>
+        <div class="setup-card">
+            <h2 style="margin-bottom:10px; text-align:center; font-size: 20px;">DDC 配送設定</h2>
+            <select id="shift-in" onchange="playSound('tap'); updateCourseOptions();" style="width:100%; padding:12px; font-size:18px; margin-bottom:8px; border-radius:10px; border:1px solid #ccc;"><option value="1">1便</option><option value="2">2便</option><option value="3">3便</option></select>
+            <select id="course-in" onchange="playSound('tap');" style="width:100%; padding:12px; font-size:18px; margin-bottom:10px; border-radius:10px; border:1px solid #ccc;"></select>
+            <button onclick="applySettings();" style="width:100%; height:55px; background:var(--purple-accent); color:#fff; border:none; border-radius:12px; font-size:18px; font-weight:bold;">設定を確定</button>
         </div>
         <div class="list-container" id="delivery-list-ui"></div>
         <button onclick="playSound('tap'); document.getElementById('setup-screen').style.display='none';" style="margin-top:15px; width:100%; padding:15px; background:#666; color:#fff; border:none; border-radius:12px; font-weight:bold;">戻る</button>
     </div>
+
     <div id="symbol-overlay"></div>
-    <div class="top-id-bar"><button style="background:none; border:none; color:white; font-size:35px;" onclick="playSound('tap'); openSetup();">⚙</button><div class="course-title" id="top-id-display">DDC SCANNER</div><span class="version-label">v1.23</span></div>
-    <div class="header"><div id="scan-step-label" style="font-weight:bold; color:#666; margin-bottom:5px; background:#e0e0eb; padding:4px 20px; border-radius:12px;">STEP 1: 台車看板スキャン</div><div id="name-label" class="line-name">LOADING...</div><div id="code-label" class="line-code">000000</div></div>
+    <div class="top-id-bar">
+        <button class="settings-btn" onclick="playSound('tap'); openSetup();">⚙</button>
+        <div class="course-info-container">
+            <div id="top-id-display" class="course-title">DDC SCANNER</div>
+        </div>
+        <span class="version-label">v1.24</span>
+    </div>
+
+    <div class="header">
+        <div id="scan-step-label">STEP 1: 台車看板スキャン</div>
+        <div id="name-label" class="line-name">LOADING...</div>
+        <div id="code-label" class="line-code">000000</div>
+    </div>
+
     <div id="cam-area"><div class="cam-frame"><video id="video" autoplay playsinline muted></video><div id="guide" class="guide-rect"></div></div></div>
-    <div class="footer"><button class="btn-side" onclick="playSound('tap'); stepShop(-1);">◀</button><button id="scan-main" disabled onclick="toggleAutoScan()">待機中</button><button class="btn-side" onclick="playSound('tap'); stepShop(1);">▶</button></div>
+    
+    <div class="footer">
+        <button class="btn-side" onclick="playSound('tap'); stepShop(-1);">◀</button>
+        <button id="scan-main" disabled onclick="toggleAutoScan()">待機中</button>
+        <button class="btn-side" onclick="playSound('tap'); stepShop(1);">▶</button>
+    </div>
 
     <script>
         let db = {}; const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQkGW07X71K4ABtBqX4HI4mbH4D9fChVkM8eoBVpvlyG5Ga_7a6vL6o6Q1zIOpJBFOZ-P--mBMbAvto/pub?gid=0&single=true&output=csv";
         let myCourse = localStorage.getItem('v41_course_id') || "";
-        let idx = parseInt(localStorage.getItem('v123_idx')) || 0;
-        let scanStep = parseInt(localStorage.getItem('v123_step')) || 1;
-        let historyData = JSON.parse(localStorage.getItem('v41_hist_data') || '[]');
+        let idx = parseInt(localStorage.getItem('v124_idx')) || 0;
+        let scanStep = parseInt(localStorage.getItem('v124_step')) || 1; 
+        let historyData = JSON.parse(localStorage.getItem('v41_hist_data') || '[]'); 
         let worker = null, isAutoScan = false, audioCtx = null, lastCheckTime = 0;
 
-        function saveHistory() { localStorage.setItem('v41_hist_data', JSON.stringify(historyData)); localStorage.setItem('v41_course_id', myCourse); localStorage.setItem('v123_idx', idx); localStorage.setItem('v123_step', scanStep); }
+        function saveHistory() { localStorage.setItem('v41_hist_data', JSON.stringify(historyData)); localStorage.setItem('v41_course_id', myCourse); localStorage.setItem('v124_idx', idx); localStorage.setItem('v124_step', scanStep); }
         function ensureCycle() { let c = historyData[0]; if (!c || c.isFinalized) { c = { id: Date.now(), course: myCourse, shops: {}, completedCodes: [], isFinalized: false }; historyData.unshift(c); if(historyData.length > 3) historyData.pop(); } return c; }
         function showPopup(t, txt) { document.getElementById('popup-title').innerText = t; document.getElementById('popup-text').innerText = txt; document.getElementById('custom-popup').style.display = "flex"; }
-        function closePopup() { playSound('tap'); document.getElementById('custom-popup').style.display = "none"; }
+        function closePopup() { document.getElementById('custom-popup').style.display = "none"; }
         
         function playSound(type) { 
             if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
